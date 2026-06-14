@@ -2,24 +2,24 @@
 @plugin "daisyui";
 
 @plugin "daisyui/theme" {
-  name: "flexi";
+  name: "suki";
   default: true;
   prefersdark: false;
   color-scheme: light;
 
   --color-base-100: hsl(44 100% 98%);
-  --color-base-200: hsl(0 0% 97%);
-  --color-base-300: hsl(0 0% 90%);
+  --color-base-200: hsl(51 100% 94%);
+  --color-base-300: hsl(53 100% 79%);
   --color-base-content: hsl(0 0% 11%);
   --color-primary: hsl(50 100% 64%);
   --color-primary-content: hsl(0 0% 11%);
   --color-secondary: hsl(350 100% 86%);
-  --color-secondary-content: hsl(349 75% 61%);
+  --color-secondary-content: hsl(0 0% 11%);
   --color-accent: hsl(202 100% 84%);
-  --color-accent-content: hsl(202 82% 62%);
+  --color-accent-content: hsl(0 0% 11%);
   --color-neutral: hsl(0 0% 11%);
   --color-neutral-content: hsl(0 0% 100%);
-  --color-info: hsl(203 61% 52%);
+  --color-info: hsl(202 82% 62%);
   --color-info-content: hsl(0 0% 100%);
   --color-success: hsl(149 49% 48%);
   --color-success-content: hsl(0 0% 100%);
@@ -28,9 +28,9 @@
   --color-error: hsl(349 75% 61%);
   --color-error-content: hsl(0 0% 100%);
 
-  --radius-selector: 1rem;
-  --radius-field: 0.5rem;
-  --radius-box: 1rem;
+  --radius-selector: 0.5rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border: 1px;

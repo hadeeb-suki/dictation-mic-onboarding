@@ -55,26 +55,35 @@ function ConnectDevice({ onConnect }: { onConnect: (devices: HIDDevice[]) => voi
   };
 
   return (
-    <section className="rounded-xl border border-neutralLine p-6">
-      <Heading variant="header-s" className="mb-3">
-        Step 1 — Connect the device
-      </Heading>
-      <Text className="mb-6">
-        Plug the dictation or microphone device into this computer, then click <strong>Connect device</strong>.
-        <br />
-        The browser will show a permission prompt — select the device from the list and click <strong>Connect</strong> to
-        grant access.
-      </Text>
+    <section className="card card-border bg-base-100">
+      <div className="card-body">
+        <h2 className="card-title">Step 1 — Connect the device</h2>
+        <Text>
+          Plug the dictation or microphone device into this computer, then click <strong>Connect device</strong>.
+          <br />
+          The browser will show a permission prompt — select the device from the list and click <strong>Connect</strong> to
+          grant access.
+        </Text>
 
-      {statusMessage && (
-        <div className="border-primaryDefault text-primaryDefault mb-4 rounded-lg border bg-primaryBgLow px-4 py-3">
-          {statusMessage}
+        {statusMessage && (
+          <div role="alert" className="alert alert-info">
+            <span>{statusMessage}</span>
+          </div>
+        )}
+
+        <div className="card-actions">
+          <Button type="button" disabled={isConnecting} onClick={connectDevices}>
+            {isConnecting ? (
+              <>
+                <span className="loading loading-spinner loading-sm" />
+                Connecting…
+              </>
+            ) : (
+              "Connect device"
+            )}
+          </Button>
         </div>
-      )}
-
-      <Button type="button" disabled={isConnecting} onClick={connectDevices}>
-        {isConnecting ? "Connecting…" : "Connect device"}
-      </Button>
+      </div>
     </section>
   );
 }
@@ -126,27 +135,41 @@ function RecordButton({
   }, [events]);
 
   return (
-    <section className="rounded-xl border p-6">
-      <Heading variant="header-s" className="mb-3">
-        Step 2 — Capture the <strong>{BUTTON_LABELS[buttonId]}</strong> button
-      </Heading>
-      <Text className="mb-6">
-        On the device, press and hold the <strong>{BUTTON_LABELS[buttonId]}</strong> button for at least 2 seconds, then
-        release it. The signals it sends will appear below.
-      </Text>
-      <pre className="text-xs mb-6 max-h-48 overflow-auto rounded-lg p-4">
-        {events
-          .map(
-            (event) =>
-              `${new Date(startTime + event.timeStamp).toLocaleTimeString()} - ${bufferToHex(new Uint8Array(event.data.buffer))}`
-          )
-          .join("\n")}
-      </pre>
-      {hasAtleast2DistinceEvents ? (
-        <Button onClick={() => onSave(events)}>Continue</Button>
-      ) : (
-        <Text className="text-sm mb-6">Waiting for the button signal — press and hold the button to continue…</Text>
-      )}
+    <section className="card card-border bg-base-100">
+      <div className="card-body">
+        <h2 className="card-title">
+          Step 2 — Capture the <strong>{BUTTON_LABELS[buttonId]}</strong> button
+        </h2>
+        <Text>
+          On the device, press and hold the <strong>{BUTTON_LABELS[buttonId]}</strong> button for at least 2 seconds, then
+          release it. The signals it sends will appear below.
+        </Text>
+        <div className="mockup-code max-h-48 overflow-auto text-xs">
+          {events.length === 0 ? (
+            <pre data-prefix="…">
+              <code>Listening for signals…</code>
+            </pre>
+          ) : (
+            events.map((event, index) => (
+              <pre key={index} data-prefix=">">
+                <code>
+                  {`${new Date(startTime + event.timeStamp).toLocaleTimeString()} — ${bufferToHex(new Uint8Array(event.data.buffer))}`}
+                </code>
+              </pre>
+            ))
+          )}
+        </div>
+        {hasAtleast2DistinceEvents ? (
+          <div className="card-actions">
+            <Button onClick={() => onSave(events)}>Continue</Button>
+          </div>
+        ) : (
+          <Text className="text-base-content/70 flex items-center gap-2 text-sm">
+            <span className="loading loading-dots loading-sm" />
+            Waiting for the button signal — press and hold the button to continue…
+          </Text>
+        )}
+      </div>
     </section>
   );
 }
@@ -221,36 +244,49 @@ function App() {
     };
 
     return (
-      <section className="rounded-xl border p-6">
-        <Heading variant="header-s" className="mb-3">
-          Step 3 — Export and share the configuration
-        </Heading>
-        <Text className="mb-6">
-          All buttons are captured. Download the configuration file and send it to your Suki contact — they'll use it to
-          enable the device for your users.
-        </Text>
+      <section className="card card-border bg-base-100">
+        <div className="card-body">
+          <h2 className="card-title">Step 3 — Export and share the configuration</h2>
+          <Text>
+            All buttons are captured. Download the configuration file and send it to your Suki contact — they'll use it to
+            enable the device for your users.
+          </Text>
 
-        <Button onClick={handleExport}>Download configuration file</Button>
+          <div className="card-actions">
+            <Button onClick={handleExport}>Download configuration file</Button>
+          </div>
+        </div>
       </section>
     );
   };
 
+  const allButtonsCaptured = KEYS_TO_RECORD.every((key) => buttonMappings.has(key));
+  const currentStep = devices.length === 0 ? 1 : allButtonsCaptured ? 3 : 2;
+
   return (
-    <div className="mx-auto h-full max-w-3xl overflow-y-auto bg-white p-6 md:p-10">
-      <Heading variant="header-m" className="mb-2">
-        Dictation device setup
-      </Heading>
-      <Text className="mb-6">
-        This tool helps you onboard a new microphone or dictation device for your organization. Follow the steps below to
-        connect the device and capture its buttons — it only takes a few minutes. When you're done, you'll download a
-        configuration file to send to your Suki contact, who will enable the device for your users.
-      </Text>
+    <div className="mx-auto flex h-full max-w-3xl flex-col gap-6 overflow-y-auto bg-base-100 p-6 md:p-10">
+      <div>
+        <Heading variant="header-m" className="mb-2">
+          Dictation device setup
+        </Heading>
+        <Text className="text-base-content/70">
+          This tool helps you onboard a new microphone or dictation device for your organization. Follow the steps below to
+          connect the device and capture its buttons — it only takes a few minutes. When you're done, you'll download a
+          configuration file to send to your Suki contact, who will enable the device for your users.
+        </Text>
+      </div>
+
+      <ul className="steps w-full">
+        <li className={`step${currentStep >= 1 ? " step-primary" : ""}`}>Connect</li>
+        <li className={`step${currentStep >= 2 ? " step-primary" : ""}`}>Capture buttons</li>
+        <li className={`step${currentStep >= 3 ? " step-primary" : ""}`}>Export</li>
+      </ul>
 
       {!devices.length && <ConnectDevice onConnect={setDevices} />}
       {devices.length > 0 && (
         <>
           {renderButtonRecording()}
-          <div className="flex gap-3 p-4">
+          <div className="flex flex-wrap gap-3">
             <Button
               variant="secondary"
               onClick={() => {
@@ -281,13 +317,28 @@ function HIDSupportGate() {
   if (!hid) {
     return (
       <div className="mx-auto max-w-2xl p-8">
-        <Heading variant="header-m" className="mb-4">
-          Browser not supported
-        </Heading>
-        <Text>
-          This setup tool uses WebHID, which is only available in Google Chrome or Microsoft Edge on a desktop computer.
-          Please reopen this page in one of those browsers — it won't run in other browsers or embedded views.
-        </Text>
+        <div role="alert" className="alert alert-error alert-vertical items-start text-left sm:alert-horizontal">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-6 w-6 shrink-0 stroke-current"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <div>
+            <h3 className="font-bold">Browser not supported</h3>
+            <div className="text-sm">
+              This setup tool uses WebHID, which is only available in Google Chrome or Microsoft Edge on a desktop computer.
+              Please reopen this page in one of those browsers — it won't run in other browsers or embedded views.
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
