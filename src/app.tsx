@@ -2,14 +2,13 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 
 import { Button, Heading, Text } from "./components";
 
-
 const KEYS_TO_RECORD = ["record", "nextField", "previousField"] as const;
-type ButtonId = typeof KEYS_TO_RECORD[number];
+type ButtonId = (typeof KEYS_TO_RECORD)[number];
 
 const BUTTON_LABELS: Record<ButtonId, string> = {
   record: "Record",
   nextField: "Next field",
-  previousField: "Previous field"
+  previousField: "Previous field",
 };
 
 function bufferToHex(data: Uint8Array): string {
@@ -23,7 +22,9 @@ function bufferToHex(data: Uint8Array): string {
 }
 
 function downloadJson(filename: string, data: unknown): void {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: "application/json",
+  });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
 
@@ -35,7 +36,11 @@ function downloadJson(filename: string, data: unknown): void {
   }, 1000);
 }
 
-function ConnectDevice({ onConnect }: { onConnect: (devices: HIDDevice[]) => void }) {
+function ConnectDevice({
+  onConnect,
+}: {
+  onConnect: (devices: HIDDevice[]) => void;
+}) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -44,7 +49,9 @@ function ConnectDevice({ onConnect }: { onConnect: (devices: HIDDevice[]) => voi
     const picked = await navigator.hid.requestDevice({ filters: [] });
 
     if (picked.length === 0) {
-      setStatusMessage("No device was selected. Click Connect device again whenever you're ready.");
+      setStatusMessage(
+        "No device was selected. Click Connect device again whenever you're ready.",
+      );
 
       setIsConnecting(false);
       return;
@@ -59,10 +66,11 @@ function ConnectDevice({ onConnect }: { onConnect: (devices: HIDDevice[]) => voi
       <div className="card-body">
         <h2 className="card-title">Step 1 — Connect the device</h2>
         <Text>
-          Plug the dictation or microphone device into this computer, then click <strong>Connect device</strong>.
+          Plug the dictation or microphone device into this computer, then click{" "}
+          <strong>Connect device</strong>.
           <br />
-          The browser will show a permission prompt — select the device from the list and click <strong>Connect</strong> to
-          grant access.
+          The browser will show a permission prompt — select the device from the
+          list and click <strong>Connect</strong> to grant access.
         </Text>
 
         {statusMessage && (
@@ -72,7 +80,11 @@ function ConnectDevice({ onConnect }: { onConnect: (devices: HIDDevice[]) => voi
         )}
 
         <div className="card-actions">
-          <Button type="button" disabled={isConnecting} onClick={connectDevices}>
+          <Button
+            type="button"
+            disabled={isConnecting}
+            onClick={connectDevices}
+          >
             {isConnecting ? (
               <>
                 <span className="loading loading-spinner loading-sm" />
@@ -91,7 +103,7 @@ function ConnectDevice({ onConnect }: { onConnect: (devices: HIDDevice[]) => voi
 function RecordButton({
   devices,
   buttonId,
-  onSave
+  onSave,
 }: {
   devices: HIDDevice[];
   buttonId: ButtonId;
@@ -110,7 +122,7 @@ function RecordButton({
         (event) => {
           setEvents((previous) => [...previous, event]);
         },
-        { signal: abortController.signal }
+        { signal: abortController.signal },
       );
       device.open().catch(() => undefined);
     }
@@ -125,11 +137,12 @@ function RecordButton({
   }, [devices]);
 
   const eventCount = useMemo(() => {
-    const uniqueBuffers = new Set(events.map((event) => bufferToHex(new Uint8Array(event.data.buffer))));
+    const uniqueBuffers = new Set(
+      events.map((event) => bufferToHex(new Uint8Array(event.data.buffer))),
+    );
 
     return uniqueBuffers.size;
   }, [events]);
-
 
   const hasAtleast1DistinctEvent = eventCount >= 1;
   const hasAtleast2DistinctEvents = eventCount >= 2;
@@ -141,8 +154,9 @@ function RecordButton({
           Step 2 — Capture the <strong>{BUTTON_LABELS[buttonId]}</strong> button
         </h2>
         <Text>
-          On the device, press and hold the <strong>{BUTTON_LABELS[buttonId]}</strong> button for at least 2 seconds, then
-          release it. The signals it sends will appear below.
+          On the device, press and hold the{" "}
+          <strong>{BUTTON_LABELS[buttonId]}</strong> button for at least 2
+          seconds, then release it. The signals it sends will appear below.
         </Text>
         <div className="mockup-code max-h-48 overflow-auto text-xs">
           {events.length === 0 ? (
@@ -167,7 +181,9 @@ function RecordButton({
           <Text className="text-base-content/70 flex items-center gap-2 text-sm">
             <span className="loading loading-dots loading-sm" />
             Waiting for the button signal —
-            {hasAtleast1DistinctEvent ? "release the button to continue…" : "press and hold the button to continue…"}
+            {hasAtleast1DistinctEvent
+              ? "release the button to continue…"
+              : "press and hold the button to continue…"}
           </Text>
         )}
       </div>
@@ -179,11 +195,11 @@ function App() {
   const [uniqueId, setUniqueId] = useState(0);
   const [devices, setDevices] = useState<HIDDevice[]>([]);
 
-  const [buttonMappings, setButtonMappings] = useState<Map<ButtonId, HIDInputReportEvent[]>>(() => new Map());
-
+  const [buttonMappings, setButtonMappings] = useState<
+    Map<ButtonId, HIDInputReportEvent[]>
+  >(() => new Map());
 
   const renderButtonRecording = () => {
-
     for (const key of KEYS_TO_RECORD) {
       if (!buttonMappings.has(key)) {
         return (
@@ -206,21 +222,24 @@ function App() {
     }
 
     const buildExport = () => {
-      const buttonRecordings = Array.from(buttonMappings.entries()).map(([buttonId, events]) => ({
-        buttonId,
-        events: events.map((event) => ({
-          timeStamp: event.timeStamp,
-          buffer: bufferToHex(new Uint8Array(event.data.buffer)),
-          device: {
-            productName: event.device.productName,
-            vendorId: event.device.vendorId,
-            productId: event.device.productId,
-            usagePages: event.device.collections
-          }
-        }))
-      }));
+      const buttonRecordings = Array.from(buttonMappings.entries()).map(
+        ([buttonId, events]) => ({
+          buttonId,
+          events: events.map((event) => ({
+            timeStamp: event.timeStamp,
+            buffer: bufferToHex(new Uint8Array(event.data.buffer)),
+            device: {
+              productName: event.device.productName,
+              vendorId: event.device.vendorId,
+              productId: event.device.productId,
+              usagePages: event.device.collections,
+            },
+          })),
+        }),
+      );
 
-      const deviceName = devices.find((item) => item.productName)?.productName ?? "hid-device";
+      const deviceName =
+        devices.find((item) => item.productName)?.productName ?? "hid-device";
 
       return {
         exportedAt: new Date().toISOString(),
@@ -229,28 +248,36 @@ function App() {
           productName: item.productName,
           vendorId: item.vendorId,
           productId: item.productId,
-          usagePages: item.collections
+          usagePages: item.collections,
         })),
-        buttonRecordings
+        buttonRecordings,
       };
     };
 
     const exportData = buildExport();
 
     const handleExport = () => {
-      const safeName = exportData.deviceName.trim().replace(/\s+/g, "-").toLowerCase();
+      const safeName = exportData.deviceName
+        .trim()
+        .replace(/\s+/g, "-")
+        .toLowerCase();
 
       downloadJson(`${safeName}-hid-debug.json`, exportData);
-      alert("Configuration file downloaded. Send it to your Suki contact to finish setup.");
+      alert(
+        "Configuration file downloaded. Send it to your Suki contact to finish setup.",
+      );
     };
 
     return (
       <section className="card card-border bg-base-100">
         <div className="card-body">
-          <h2 className="card-title">Step 3 — Export and share the configuration</h2>
+          <h2 className="card-title">
+            Step 3 — Export and share the configuration
+          </h2>
           <Text>
-            All buttons are captured. Download the configuration file and send it to your Suki contact — they'll use it to
-            enable the device for your users.
+            All buttons are captured. Download the configuration file and send
+            it to your Suki contact — they'll use it to enable the device for
+            your users.
           </Text>
 
           <div className="card-actions">
@@ -261,7 +288,9 @@ function App() {
     );
   };
 
-  const allButtonsCaptured = KEYS_TO_RECORD.every((key) => buttonMappings.has(key));
+  const allButtonsCaptured = KEYS_TO_RECORD.every((key) =>
+    buttonMappings.has(key),
+  );
   const currentStep = devices.length === 0 ? 1 : allButtonsCaptured ? 3 : 2;
 
   return (
@@ -271,16 +300,24 @@ function App() {
           Dictation device setup
         </Heading>
         <Text className="text-base-content/70">
-          This tool helps you onboard a new microphone or dictation device for your organization. Follow the steps below to
-          connect the device and capture its buttons — it only takes a few minutes. When you're done, you'll download a
-          configuration file to send to your Suki contact, who will enable the device for your users.
+          This tool helps you onboard a new microphone or dictation device for
+          your organization. Follow the steps below to connect the device and
+          capture its buttons — it only takes a few minutes. When you're done,
+          you'll download a configuration file to send to your Suki contact, who
+          will enable the device for your users.
         </Text>
       </div>
 
       <ul className="steps w-full">
-        <li className={`step${currentStep >= 1 ? " step-primary" : ""}`}>Connect</li>
-        <li className={`step${currentStep >= 2 ? " step-primary" : ""}`}>Capture buttons</li>
-        <li className={`step${currentStep >= 3 ? " step-primary" : ""}`}>Export</li>
+        <li className={`step${currentStep >= 1 ? " step-primary" : ""}`}>
+          Connect
+        </li>
+        <li className={`step${currentStep >= 2 ? " step-primary" : ""}`}>
+          Capture buttons
+        </li>
+        <li className={`step${currentStep >= 3 ? " step-primary" : ""}`}>
+          Export
+        </li>
       </ul>
 
       {!devices.length && <ConnectDevice onConnect={setDevices} />}
@@ -293,7 +330,7 @@ function App() {
               onClick={() => {
                 setDevices([]);
                 setButtonMappings(new Map());
-                setUniqueId(x => x + 1)
+                setUniqueId((x) => x + 1);
               }}
             >
               Connect a different device
@@ -302,7 +339,7 @@ function App() {
               variant="secondary"
               onClick={() => {
                 setButtonMappings(new Map());
-                setUniqueId(x => x + 1)
+                setUniqueId((x) => x + 1);
               }}
             >
               Start button capture over
@@ -314,14 +351,16 @@ function App() {
   );
 }
 
-
 function HIDSupportGate() {
   const hid = navigator.hid;
 
   if (!hid) {
     return (
       <div className="mx-auto max-w-2xl p-8">
-        <div role="alert" className="alert alert-error alert-vertical items-start text-left sm:alert-horizontal">
+        <div
+          role="alert"
+          className="alert alert-error alert-vertical items-start text-left sm:alert-horizontal"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             className="h-6 w-6 shrink-0 stroke-current"
@@ -338,15 +377,17 @@ function HIDSupportGate() {
           <div>
             <h3 className="font-bold">Browser not supported</h3>
             <div className="text-sm">
-              This setup tool uses WebHID, which is only available in Google Chrome or Microsoft Edge on a desktop computer.
-              Please reopen this page in one of those browsers — it won't run in other browsers or embedded views.
+              This setup tool uses WebHID, which is only available in Google
+              Chrome or Microsoft Edge on a desktop computer. Please reopen this
+              page in one of those browsers — it won't run in other browsers or
+              embedded views.
             </div>
           </div>
         </div>
       </div>
     );
   }
-  return <App />
+  return <App />;
 }
 
 export default HIDSupportGate;
