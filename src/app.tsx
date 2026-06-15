@@ -124,15 +124,15 @@ function RecordButton({
     };
   }, [devices]);
 
-  const hasAtleast2DistinceEvents = useMemo(() => {
-    if (events.length < 2) {
-      return false;
-    }
-
+  const eventCount = useMemo(() => {
     const uniqueBuffers = new Set(events.map((event) => bufferToHex(new Uint8Array(event.data.buffer))));
 
-    return uniqueBuffers.size >= 2;
+    return uniqueBuffers.size;
   }, [events]);
+
+
+  const hasAtleast1DistinctEvent = eventCount >= 1;
+  const hasAtleast2DistinctEvents = eventCount >= 2;
 
   return (
     <section className="card card-border bg-base-100">
@@ -159,14 +159,15 @@ function RecordButton({
             ))
           )}
         </div>
-        {hasAtleast2DistinceEvents ? (
+        {hasAtleast2DistinctEvents ? (
           <div className="card-actions">
             <Button onClick={() => onSave(events)}>Continue</Button>
           </div>
         ) : (
           <Text className="text-base-content/70 flex items-center gap-2 text-sm">
             <span className="loading loading-dots loading-sm" />
-            Waiting for the button signal — press and hold the button to continue…
+            Waiting for the button signal —
+            {hasAtleast1DistinctEvent ? "release the button to continue…" : "press and hold the button to continue…"}
           </Text>
         )}
       </div>
@@ -175,7 +176,7 @@ function RecordButton({
 }
 
 function App() {
-
+  const [uniqueId, setUniqueId] = useState(0);
   const [devices, setDevices] = useState<HIDDevice[]>([]);
 
   const [buttonMappings, setButtonMappings] = useState<Map<ButtonId, HIDInputReportEvent[]>>(() => new Map());
@@ -187,7 +188,7 @@ function App() {
       if (!buttonMappings.has(key)) {
         return (
           <RecordButton
-            key={key}
+            key={key + uniqueId}
             devices={devices}
             buttonId={key}
             onSave={(events) => {
@@ -291,6 +292,8 @@ function App() {
               variant="secondary"
               onClick={() => {
                 setDevices([]);
+                setButtonMappings(new Map());
+                setUniqueId(x => x + 1)
               }}
             >
               Connect a different device
@@ -299,6 +302,7 @@ function App() {
               variant="secondary"
               onClick={() => {
                 setButtonMappings(new Map());
+                setUniqueId(x => x + 1)
               }}
             >
               Start button capture over
