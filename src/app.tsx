@@ -80,15 +80,15 @@ function CompletedStep({
   return (
     <section
       className={`card card-border animate-step-in ${isWarning
-          ? "border-warning/40 bg-warning/10"
-          : "border-success/40 bg-success/10"
+        ? "border-warning/40 bg-warning/10"
+        : "border-success/40 bg-success/10"
         }`}
     >
       <div className="card-body flex-row items-center gap-3 py-4">
         <span
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${isWarning
-              ? "bg-warning text-warning-content"
-              : "bg-success text-success-content"
+            ? "bg-warning text-warning-content"
+            : "bg-success text-success-content"
             }`}
         >
           {isWarning ? <WarningIcon /> : <CheckIcon />}
@@ -273,17 +273,23 @@ function RecordButton({
     if (eventCount === 2) {
       return (
         <div className="card-actions">
+          <Button className="btn-outline" onClick={() => setEvents([])}>Start over</Button>
           <Button className="btn-primary" onClick={() => onSave(events)}>Continue</Button>
         </div>
       );
     }
 
     return (
-      <Text className="text-base-content/70 flex items-center gap-2 text-sm">
-        <span className="loading loading-dots loading-sm" />
-        Waiting for the button signal —
-        {eventCount === 1 ? "release the button to continue…" : "press and hold the button to continue…"}
-      </Text>
+      <>
+        <Text className="text-base-content/70 flex items-center gap-2 text-sm">
+          <span className="loading loading-dots loading-sm" />
+          Waiting for the button signal —
+          {eventCount === 1 ? "release the button to continue…" : "press and hold the button to continue…"}
+        </Text>
+        <div className="card-actions">
+          <Button className="btn-outline" onClick={() => setEvents([])}>Start over</Button>
+        </div>
+      </>
     );
   }
 
