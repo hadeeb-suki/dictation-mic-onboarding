@@ -136,16 +136,33 @@ function RecordButton({
     };
   }, [devices]);
 
+  // Some devices like Philips SpeechMic, send multiple events for the same button press.
+  // This filters out duplicate events.
+  const displayEvents = useMemo(() => {
+    const result: { event: HIDInputReportEvent; hex: string }[] = [];
+
+    for (const event of events) {
+      const hex = bufferToHex(new Uint8Array(event.data.buffer));
+
+      if (result[result.length - 1]?.hex === hex) {
+        continue;
+      }
+
+      result.push({ event, hex });
+    }
+
+    return result;
+  }, [events]);
+
   const eventCount = useMemo(() => {
-    const uniqueBuffers = new Set(
-      events.map((event) => bufferToHex(new Uint8Array(event.data.buffer))),
-    );
+    const uniqueBuffers = new Set(displayEvents.map((item) => item.hex));
 
     return uniqueBuffers.size;
-  }, [events]);
+  }, [displayEvents]);
 
   const hasAtleast1DistinctEvent = eventCount >= 1;
   const hasAtleast2DistinctEvents = eventCount >= 2;
+  const hasTooManyDistinctEvents = eventCount > 2;
 
   return (
     <section className="card card-border bg-base-100">
@@ -159,21 +176,29 @@ function RecordButton({
           seconds, then release it. The signals it sends will appear below.
         </Text>
         <div className="mockup-code max-h-48 overflow-auto text-xs">
-          {events.length === 0 ? (
+          {displayEvents.length === 0 ? (
             <pre data-prefix="…">
               <code>Listening for signals…</code>
             </pre>
           ) : (
-            events.map((event, index) => (
+            displayEvents.map(({ event, hex }, index) => (
               <pre key={index} data-prefix=">">
                 <code>
-                  {`${new Date(startTime + event.timeStamp).toLocaleTimeString()} — ${bufferToHex(new Uint8Array(event.data.buffer))}`}
+                  {`${new Date(startTime + event.timeStamp).toLocaleTimeString()} — ${hex}`}
                 </code>
               </pre>
             ))
           )}
         </div>
-        {hasAtleast2DistinctEvents ? (
+        {hasTooManyDistinctEvents ? (
+          <div role="alert" className="alert alert-error">
+            <span>
+              Too many button presses detected. Please press only the{" "}
+              <strong>{BUTTON_LABELS[buttonId]}</strong> button. Click{" "}
+              <strong>Start button capture over</strong> below to restart.
+            </span>
+          </div>
+        ) : hasAtleast2DistinctEvents ? (
           <div className="card-actions">
             <Button onClick={() => onSave(events)}>Continue</Button>
           </div>
