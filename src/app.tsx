@@ -1,3 +1,4 @@
+import type { ComponentChildren } from "preact";
 import { useEffect, useMemo, useState } from "preact/hooks";
 
 import { Button, Heading, Text } from "./components";
@@ -19,6 +20,53 @@ function bufferToHex(data: Uint8Array): string {
   }
 
   return bytes.join(" ");
+}
+
+function countDistinctSignals(events: HIDInputReportEvent[]): number {
+  const uniqueBuffers = new Set<string>();
+
+  for (const event of events) {
+    uniqueBuffers.add(bufferToHex(new Uint8Array(event.data.buffer)));
+  }
+
+  return uniqueBuffers.size;
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-4 w-4"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={3}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+
+function CompletedStep({
+  title,
+  summary,
+}: {
+  title: string;
+  summary: ComponentChildren;
+}) {
+  return (
+    <section className="card card-border border-success/40 bg-success/10 animate-step-in">
+      <div className="card-body flex-row items-center gap-3 py-4">
+        <span className="bg-success text-success-content flex h-7 w-7 shrink-0 items-center justify-center rounded-full">
+          <CheckIcon />
+        </span>
+        <div className="flex flex-col gap-0.5">
+          <h2 className="font-semibold">{title}</h2>
+          <Text className="text-base-content/70 text-sm">{summary}</Text>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function downloadJson(filename: string, data: unknown): void {
@@ -62,7 +110,7 @@ function ConnectDevice({
   };
 
   return (
-    <section className="card card-border bg-base-100">
+    <section className="card card-border bg-base-100 animate-step-in">
       <div className="card-body">
         <h2 className="card-title">Step 1 — Connect the device</h2>
         <Text>
@@ -103,10 +151,14 @@ function ConnectDevice({
 function RecordButton({
   devices,
   buttonId,
+  stepIndex,
+  totalSteps,
   onSave,
 }: {
   devices: HIDDevice[];
   buttonId: ButtonId;
+  stepIndex: number;
+  totalSteps: number;
   onSave: (events: HIDInputReportEvent[]) => void;
 }) {
   const [events, setEvents] = useState<HIDInputReportEvent[]>([]);
@@ -165,10 +217,13 @@ function RecordButton({
   const hasTooManyDistinctEvents = eventCount > 2;
 
   return (
-    <section className="card card-border bg-base-100">
+    <section className="card card-border border-primary/50 bg-base-100 animate-step-in">
       <div className="card-body">
         <h2 className="card-title">
           Step 2 — Capture the <strong>{BUTTON_LABELS[buttonId]}</strong> button
+          <span className="badge badge-soft badge-sm">
+            {stepIndex} of {totalSteps}
+          </span>
         </h2>
         <Text>
           On the device, press and hold the{" "}
@@ -216,6 +271,80 @@ function RecordButton({
   );
 }
 
+function ExportStep({
+  devices,
+  buttonMappings,
+}: {
+  devices: HIDDevice[];
+  buttonMappings: Map<ButtonId, HIDInputReportEvent[]>;
+}) {
+  const buildExport = () => {
+    const buttonRecordings = Array.from(buttonMappings.entries()).map(
+      ([buttonId, events]) => ({
+        buttonId,
+        events: events.map((event) => ({
+          timeStamp: event.timeStamp,
+          buffer: bufferToHex(new Uint8Array(event.data.buffer)),
+          device: {
+            productName: event.device.productName,
+            vendorId: event.device.vendorId,
+            productId: event.device.productId,
+            usagePages: event.device.collections,
+          },
+        })),
+      }),
+    );
+
+    const deviceName =
+      devices.find((item) => item.productName)?.productName ?? "hid-device";
+
+    return {
+      exportedAt: new Date().toISOString(),
+      deviceName,
+      devices: devices.map((item) => ({
+        productName: item.productName,
+        vendorId: item.vendorId,
+        productId: item.productId,
+        usagePages: item.collections,
+      })),
+      buttonRecordings,
+    };
+  };
+
+  const exportData = buildExport();
+
+  const handleExport = () => {
+    const safeName = exportData.deviceName
+      .trim()
+      .replace(/\s+/g, "-")
+      .toLowerCase();
+
+    downloadJson(`${safeName}-hid-debug.json`, exportData);
+    alert(
+      "Configuration file downloaded. Send it to your Suki contact to finish setup.",
+    );
+  };
+
+  return (
+    <section className="card card-border border-primary/50 bg-base-100 animate-step-in">
+      <div className="card-body">
+        <h2 className="card-title">
+          Step 3 — Export and share the configuration
+        </h2>
+        <Text>
+          All buttons are captured. Download the configuration file and send it
+          to your Suki contact — they'll use it to enable the device for your
+          users.
+        </Text>
+
+        <div className="card-actions">
+          <Button onClick={handleExport}>Download configuration file</Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function App() {
   const [uniqueId, setUniqueId] = useState(0);
   const [devices, setDevices] = useState<HIDDevice[]>([]);
@@ -224,99 +353,18 @@ function App() {
     Map<ButtonId, HIDInputReportEvent[]>
   >(() => new Map());
 
-  const renderButtonRecording = () => {
-    for (const key of KEYS_TO_RECORD) {
-      if (!buttonMappings.has(key)) {
-        return (
-          <RecordButton
-            key={key + uniqueId}
-            devices={devices}
-            buttonId={key}
-            onSave={(events) => {
-              setButtonMappings((previous) => {
-                const newMap = new Map(previous);
-
-                newMap.set(key, events);
-
-                return newMap;
-              });
-            }}
-          />
-        );
-      }
-    }
-
-    const buildExport = () => {
-      const buttonRecordings = Array.from(buttonMappings.entries()).map(
-        ([buttonId, events]) => ({
-          buttonId,
-          events: events.map((event) => ({
-            timeStamp: event.timeStamp,
-            buffer: bufferToHex(new Uint8Array(event.data.buffer)),
-            device: {
-              productName: event.device.productName,
-              vendorId: event.device.vendorId,
-              productId: event.device.productId,
-              usagePages: event.device.collections,
-            },
-          })),
-        }),
-      );
-
-      const deviceName =
-        devices.find((item) => item.productName)?.productName ?? "hid-device";
-
-      return {
-        exportedAt: new Date().toISOString(),
-        deviceName,
-        devices: devices.map((item) => ({
-          productName: item.productName,
-          vendorId: item.vendorId,
-          productId: item.productId,
-          usagePages: item.collections,
-        })),
-        buttonRecordings,
-      };
-    };
-
-    const exportData = buildExport();
-
-    const handleExport = () => {
-      const safeName = exportData.deviceName
-        .trim()
-        .replace(/\s+/g, "-")
-        .toLowerCase();
-
-      downloadJson(`${safeName}-hid-debug.json`, exportData);
-      alert(
-        "Configuration file downloaded. Send it to your Suki contact to finish setup.",
-      );
-    };
-
-    return (
-      <section className="card card-border bg-base-100">
-        <div className="card-body">
-          <h2 className="card-title">
-            Step 3 — Export and share the configuration
-          </h2>
-          <Text>
-            All buttons are captured. Download the configuration file and send
-            it to your Suki contact — they'll use it to enable the device for
-            your users.
-          </Text>
-
-          <div className="card-actions">
-            <Button onClick={handleExport}>Download configuration file</Button>
-          </div>
-        </div>
-      </section>
-    );
-  };
-
   const allButtonsCaptured = KEYS_TO_RECORD.every((key) =>
     buttonMappings.has(key),
   );
   const currentStep = devices.length === 0 ? 1 : allButtonsCaptured ? 3 : 2;
+  const isConnected = devices.length > 0;
+  const connectedName =
+    devices.find((item) => item.productName)?.productName ?? "your device";
+
+  // The active capture is the first button that hasn't been recorded yet.
+  const activeCaptureKey = KEYS_TO_RECORD.find(
+    (key) => !buttonMappings.has(key),
+  );
 
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col gap-6 overflow-y-auto bg-base-100 p-6 md:p-10">
@@ -345,32 +393,87 @@ function App() {
         </li>
       </ul>
 
-      {!devices.length && <ConnectDevice onConnect={setDevices} />}
-      {devices.length > 0 && (
-        <>
-          {renderButtonRecording()}
-          <div className="flex flex-wrap gap-3">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setDevices([]);
-                setButtonMappings(new Map());
-                setUniqueId((x) => x + 1);
-              }}
-            >
-              Connect a different device
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setButtonMappings(new Map());
-                setUniqueId((x) => x + 1);
-              }}
-            >
-              Start button capture over
-            </Button>
-          </div>
-        </>
+      {/* Step 1 — Connect: full while pending, collapses to a summary once done. */}
+      {isConnected ? (
+        <CompletedStep
+          title="Step 1 — Device connected"
+          summary={
+            <>
+              Connected to <strong>{connectedName}</strong>.
+            </>
+          }
+        />
+      ) : (
+        <ConnectDevice onConnect={setDevices} />
+      )}
+
+      {/* Step 2 — Capture: each finished button stays as a summary, the next one reveals. */}
+      {isConnected &&
+        KEYS_TO_RECORD.map((key, index) => {
+          const captured = buttonMappings.get(key);
+
+          if (captured) {
+            return (
+              <CompletedStep
+                key={key}
+                title={`Step 2 — ${BUTTON_LABELS[key]} button captured`}
+                summary={`${countDistinctSignals(captured)} distinct signal(s) recorded.`}
+              />
+            );
+          }
+
+          if (key === activeCaptureKey) {
+            return (
+              <RecordButton
+                key={key + uniqueId}
+                devices={devices}
+                buttonId={key}
+                stepIndex={index + 1}
+                totalSteps={KEYS_TO_RECORD.length}
+                onSave={(events) => {
+                  setButtonMappings((previous) => {
+                    const newMap = new Map(previous);
+
+                    newMap.set(key, events);
+
+                    return newMap;
+                  });
+                }}
+              />
+            );
+          }
+
+          // Future capture steps stay hidden until the user reaches them.
+          return null;
+        })}
+
+      {/* Step 3 — Export: revealed once every button is captured. */}
+      {isConnected && allButtonsCaptured && (
+        <ExportStep devices={devices} buttonMappings={buttonMappings} />
+      )}
+
+      {isConnected && (
+        <div className="flex flex-wrap gap-3">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setDevices([]);
+              setButtonMappings(new Map());
+              setUniqueId((x) => x + 1);
+            }}
+          >
+            Connect a different device
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setButtonMappings(new Map());
+              setUniqueId((x) => x + 1);
+            }}
+          >
+            Start button capture over
+          </Button>
+        </div>
       )}
     </div>
   );
