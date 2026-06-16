@@ -132,6 +132,7 @@ function ConnectDevice({
             type="button"
             disabled={isConnecting}
             onClick={connectDevices}
+            className="btn btn-primary"
           >
             {isConnecting ? (
               <>
@@ -212,9 +213,46 @@ function RecordButton({
     return uniqueBuffers.size;
   }, [displayEvents]);
 
-  const hasAtleast1DistinctEvent = eventCount >= 1;
-  const hasAtleast2DistinctEvents = eventCount >= 2;
-  const hasTooManyDistinctEvents = eventCount > 2;
+
+  function renderButtons() {
+
+    const hasTooManyDistinctEvents = eventCount > 2;
+
+
+    if (hasTooManyDistinctEvents) {
+      return (
+        <>
+          <div role="alert" className="alert alert-error">
+            <span>
+              Too many button presses detected. Please press only the{" "}
+              <strong>{BUTTON_LABELS[buttonId]}</strong> button. Click{" "}
+              <strong>Start button capture over</strong> below to restart.
+            </span>
+          </div>
+          <div className="card-actions">
+            <Button className="btn-primary" onClick={() => setEvents([])}>Start over</Button>
+            <Button className="btn-error" onClick={() => onSave(events)}>Continue Anyway</Button>
+          </div>
+        </>
+      );
+    }
+
+    if (eventCount === 2) {
+      return (
+        <div className="card-actions">
+          <Button className="btn-primary" onClick={() => onSave(events)}>Continue</Button>
+        </div>
+      );
+    }
+
+    return (
+      <Text className="text-base-content/70 flex items-center gap-2 text-sm">
+        <span className="loading loading-dots loading-sm" />
+        Waiting for the button signal —
+        {eventCount === 1 ? "release the button to continue…" : "press and hold the button to continue…"}
+      </Text>
+    );
+  }
 
   return (
     <section className="card card-border border-primary/50 bg-base-100 animate-step-in">
@@ -245,27 +283,7 @@ function RecordButton({
             ))
           )}
         </div>
-        {hasTooManyDistinctEvents ? (
-          <div role="alert" className="alert alert-error">
-            <span>
-              Too many button presses detected. Please press only the{" "}
-              <strong>{BUTTON_LABELS[buttonId]}</strong> button. Click{" "}
-              <strong>Start button capture over</strong> below to restart.
-            </span>
-          </div>
-        ) : hasAtleast2DistinctEvents ? (
-          <div className="card-actions">
-            <Button onClick={() => onSave(events)}>Continue</Button>
-          </div>
-        ) : (
-          <Text className="text-base-content/70 flex items-center gap-2 text-sm">
-            <span className="loading loading-dots loading-sm" />
-            Waiting for the button signal —
-            {hasAtleast1DistinctEvent
-              ? "release the button to continue…"
-              : "press and hold the button to continue…"}
-          </Text>
-        )}
+        {renderButtons()}
       </div>
     </section>
   );
@@ -338,7 +356,7 @@ function ExportStep({
         </Text>
 
         <div className="card-actions">
-          <Button onClick={handleExport}>Download configuration file</Button>
+          <Button className="btn-primary" onClick={handleExport}>Download configuration file</Button>
         </div>
       </div>
     </section>
@@ -455,7 +473,7 @@ function App() {
       {isConnected && (
         <div className="flex flex-wrap gap-3">
           <Button
-            variant="secondary"
+            className="btn-outline"
             onClick={() => {
               setDevices([]);
               setButtonMappings(new Map());
@@ -465,7 +483,7 @@ function App() {
             Connect a different device
           </Button>
           <Button
-            variant="secondary"
+            className="btn-outline"
             onClick={() => {
               setButtonMappings(new Map());
               setUniqueId((x) => x + 1);

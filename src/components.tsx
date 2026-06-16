@@ -4,15 +4,14 @@ function cn(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
 }
 
-type ButtonProps = JSX.IntrinsicElements["button"] & {
-  variant?: "primary" | "secondary";
+type ButtonProps = Omit<JSX.IntrinsicElements["button"], "className"> & {
+  className?: string;
 };
 
-function Button({ variant = "primary", className, children, ...rest }: ButtonProps) {
-  const variantClass = variant === "secondary" ? "btn-outline" : "btn-primary";
+function Button({ className, children, ...rest }: ButtonProps) {
 
   return (
-    <button className={cn("btn", variantClass, className as string)} {...rest}>
+    <button className={cn("btn", className)} {...rest}>
       {children}
     </button>
   );
