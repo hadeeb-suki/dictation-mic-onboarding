@@ -47,18 +47,51 @@ function CheckIcon() {
   );
 }
 
+function WarningIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-4 w-4"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2.5}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+      />
+    </svg>
+  );
+}
+
 function CompletedStep({
   title,
   summary,
+  variant = "success",
 }: {
   title: string;
   summary: ComponentChildren;
+  variant?: "success" | "warning";
 }) {
+  const isWarning = variant === "warning";
+
   return (
-    <section className="card card-border border-success/40 bg-success/10 animate-step-in">
+    <section
+      className={`card card-border animate-step-in ${isWarning
+          ? "border-warning/40 bg-warning/10"
+          : "border-success/40 bg-success/10"
+        }`}
+    >
       <div className="card-body flex-row items-center gap-3 py-4">
-        <span className="bg-success text-success-content flex h-7 w-7 shrink-0 items-center justify-center rounded-full">
-          <CheckIcon />
+        <span
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${isWarning
+              ? "bg-warning text-warning-content"
+              : "bg-success text-success-content"
+            }`}
+        >
+          {isWarning ? <WarningIcon /> : <CheckIcon />}
         </span>
         <div className="flex flex-col gap-0.5">
           <h2 className="font-semibold">{title}</h2>
@@ -431,11 +464,19 @@ function App() {
           const captured = buttonMappings.get(key);
 
           if (captured) {
+            const distinctSignals = countDistinctSignals(captured);
+            const tooManySignals = distinctSignals > 2;
+
             return (
               <CompletedStep
                 key={key}
+                variant={tooManySignals ? "warning" : "success"}
                 title={`Step 2 — ${BUTTON_LABELS[key]} button captured`}
-                summary={`${countDistinctSignals(captured)} distinct signal(s) recorded.`}
+                summary={
+                  tooManySignals
+                    ? `${distinctSignals} distinct signals recorded — more than expected. This may include extra presses; use "Start button capture over" to redo it if needed.`
+                    : `${distinctSignals} distinct signals recorded.`
+                }
               />
             );
           }
