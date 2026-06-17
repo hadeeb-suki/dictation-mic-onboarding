@@ -1,4 +1,5 @@
 import { useState } from "preact/hooks";
+import { Link } from "wouter-preact";
 
 import { Button, Heading, Text } from "./components";
 import {
@@ -36,9 +37,12 @@ function App() {
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col gap-6 overflow-y-auto bg-base-100 p-6 md:p-10">
       <div>
-        <Heading variant="header-m" className="mb-2">
-          Dictation device setup
-        </Heading>
+        <div className="mb-2 flex items-start justify-between gap-4">
+          <Heading variant="header-m">Dictation device setup</Heading>
+          <Link href="/playground" className="link link-hover shrink-0 text-sm">
+            Button playground →
+          </Link>
+        </div>
         <Text className="text-base-content/70">
           This tool helps you onboard a new microphone or dictation device for
           your organization. Follow the steps below to connect the device and
