@@ -37,12 +37,9 @@ function App() {
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col gap-6 overflow-y-auto bg-base-100 p-6 md:p-10">
       <div>
-        <div className="mb-2 flex items-start justify-between gap-4">
-          <Heading variant="header-m">Dictation device setup</Heading>
-          <Link href="/playground" className="link link-hover shrink-0 text-sm">
-            Button playground →
-          </Link>
-        </div>
+        <Heading variant="header-m" className="mb-2">
+          Dictation device setup
+        </Heading>
         <Text className="text-base-content/70">
           This tool helps you onboard a new microphone or dictation device for
           your organization. Follow the steps below to connect the device and
@@ -50,6 +47,35 @@ function App() {
           you'll download a configuration file to send to your Suki contact, who
           will enable the device for your users.
         </Text>
+      </div>
+
+      <div
+        role="alert"
+        className="alert alert-info alert-soft alert-vertical items-start text-left sm:alert-horizontal sm:items-center"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          className="h-6 w-6 shrink-0 stroke-current"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M13 10V3L4 14h7v7l9-11h-7z"
+          />
+        </svg>
+        <div className="flex-1">
+          <h3 className="font-semibold">Already have your device plugged in?</h3>
+          <div className="text-sm">
+            Open the playground to check whether it already works — or continue
+            with the setup steps below.
+          </div>
+        </div>
+        <Link href="/playground" className="btn btn-primary shrink-0">
+          Try the playground →
+        </Link>
       </div>
 
       <ul className="steps w-full">
