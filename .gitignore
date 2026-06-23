@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 
 .agents
+/lib/
+.bsb.lock
+**/*.res.mjs

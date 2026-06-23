@@ -1,0 +1,17 @@
+{
+  "name": "dictation-mic-onboarding",
+  "sources": {
+    "dir": "src",
+    "subdirs": true
+  },
+  "package-specs": {
+    "module": "esmodule",
+    "in-source": true
+  },
+  "suffix": ".res.mjs",
+  "jsx": {
+    "version": 4,
+    "preserve": false
+  },
+  "dependencies": ["@rescript/react"]
+}

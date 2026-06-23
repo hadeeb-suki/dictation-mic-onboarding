@@ -5,21 +5,24 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "build": "rescript && vite build",
+    "preview": "vite preview",
+    "res:build": "rescript",
+    "res:clean": "rescript clean",
+    "res:dev": "rescript watch"
   },
   "dependencies": {
+    "@rescript/react": "^0.15.0",
+    "@rescript/runtime": "12.3.0",
     "preact": "^10.29.1",
     "wouter-preact": "^3.10.0"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.5",
     "@tailwindcss/vite": "^4.3.1",
-    "@types/node": "^24.12.3",
-    "@types/w3c-web-hid": "^1.0.7",
     "daisyui": "^5.5.23",
+    "rescript": "12.3.0",
     "tailwindcss": "^4.3.1",
-    "typescript": "~6.0.2",
     "vite": "^8.0.12"
   },
   "packageManager": "pnpm@11.0.0"
