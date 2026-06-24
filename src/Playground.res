@@ -113,37 +113,40 @@ module Inner = {
       setIsConnecting(_ => true)
       let finish = () => setIsConnecting(_ => false)
 
-      try {
-        let hid = WebHid.hid->Option.getOrThrow
-        let picked = await hid->WebHid.requestDevice({filters: deviceFilters})
+      let hid = WebHid.hid->Option.getOrThrow
+      let picked = await hid->WebHid.requestDevice({filters: deviceFilters})
 
-        switch picked->Array.at(0) {
-        | None =>
-          setStatusMessage(_ => Some(
-            "No device was selected. Click Connect device again whenever you're ready.",
-          ))
-        | Some(device) =>
-          switch matchConfig(device) {
-          | None => {
-              let name = device->WebHid.productName
-              setStatusMessage(_ => Some(name ++ " isn't one of the supported devices."))
-            }
-          | Some(config) => {
-              if !(device->WebHid.opened) {
+      switch picked->Array.at(0) {
+      | None =>
+        setStatusMessage(_ => Some(
+          "No device was selected. Click Connect device again whenever you're ready.",
+        ))
+      | Some(device) =>
+        switch matchConfig(device) {
+        | None => {
+            let name = device->WebHid.productName
+            setStatusMessage(_ => Some(name ++ " isn't one of the supported devices."))
+          }
+        | Some(config) => {
+            if !(device->WebHid.opened) {
+              try {
                 await device->WebHid.open_
+              } catch {
+              | error => {
+                  let errorMessage =
+                    error
+                    ->JsExn.fromException
+                    ->Option.flatMap(JsExn.message)
+                    ->Option.getOr("Unknown error")
+                  setStatusMessage(_ => Some("Could not open the device: " ++ errorMessage))
+                }
               }
-              setConnection(_ => Some({device, config}))
             }
+            setConnection(_ => Some({device, config}))
           }
         }
-        finish()
-      } catch {
-      | JsExn(error) =>
-        setStatusMessage(_ => Some(
-          "Could not open the device: " ++ error->JsExn.message->Option.getOr("Unknown error"),
-        ))
-        finish()
       }
+      finish()
     }
 
     let disconnect = async () => {
@@ -152,7 +155,11 @@ module Inner = {
       | Some(conn) =>
         setConnection(_ => None)
         if conn.device->WebHid.opened {
-          await conn.device->WebHid.close->Promise.catch(_ => Promise.resolve())
+          try {
+            await conn.device->WebHid.close
+          } catch {
+          | _ => ()
+          }
         }
       }
     }

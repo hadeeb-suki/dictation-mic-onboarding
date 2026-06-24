@@ -5,7 +5,7 @@
 external getElementById: string => Nullable.t<Dom.element> = "getElementById"
 
 module Root = {
-  @react.component
+  @jsx.component
   let make = () =>
     <Wouter.Router hook={Wouter.useHashLocation}>
       <Wouter.Switch>
@@ -16,7 +16,7 @@ module Root = {
     </Wouter.Router>
 }
 
-switch getElementById("app") {
-| Value(root) => render(<Root />, root)
+switch getElementById("app")->Nullable.toOption {
+| Some(root) => render(<Root />, root)
 | _ => ()
 }

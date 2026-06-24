@@ -1,9 +1,5 @@
-module Global = {
-  @new external cloneMap: Map.t<'k, 'v> => Map.t<'k, 'v> = "Map"
-}
-
 module Flow = {
-  @react.component
+  @jsx.component
   let make = () => {
     let (uniqueId, setUniqueId) = React.useState(_ => 0)
     let (devices, setDevices) = React.useState(_ => [])
@@ -113,7 +109,7 @@ module Flow = {
                   totalSteps={Array.length(Hid.keysToRecord)}
                   onSave={events =>
                     setButtonMappings(previous => {
-                      let newMap = Global.cloneMap(previous)
+                      let newMap = Browser.cloneMap(previous)
                       newMap->Map.set(key, events)
                       newMap
                     })}
@@ -165,7 +161,7 @@ module Flow = {
 }
 
 module UnsupportedBrowser = {
-  @react.component
+  @jsx.component
   let make = () =>
     <div className="mx-auto max-w-2xl p-8">
       <div
@@ -197,7 +193,7 @@ module UnsupportedBrowser = {
     </div>
 }
 
-@react.component
+@jsx.component
 let make = () =>
   switch WebHid.hid {
   | Some(_) => <Flow />

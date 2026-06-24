@@ -30,7 +30,7 @@ let toExportDevice = (device: WebHid.hidDevice): exportDevice => {
   usagePages: device->WebHid.collections,
 }
 
-@react.component
+@jsx.component
 let make = (
   ~devices: array<WebHid.hidDevice>,
   ~buttonMappings: Map.t<Hid.buttonId, array<WebHid.hidInputReportEvent>>,

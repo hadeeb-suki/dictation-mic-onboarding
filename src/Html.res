@@ -3,14 +3,11 @@
 // component relies on.
 module Pre = {
   type preProps = {
-    className?: string,
+    ...JsxDOM.domProps,
     @as("data-prefix") dataPrefix?: string,
-    children: React.element,
   }
 
   @module("preact/jsx-runtime") external jsx: (string, preProps) => React.element = "jsx"
 
-  @react.component
-  let make = (~className=?, ~dataPrefix=?, ~children) =>
-    jsx("pre", {?className, ?dataPrefix, children})
+  let make = (props: preProps) => jsx("pre", props)
 }

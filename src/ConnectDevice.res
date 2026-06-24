@@ -1,4 +1,4 @@
-@react.component
+@jsx.component
 let make = (~onConnect: array<WebHid.hidDevice> => unit) => {
   let (isConnecting, setIsConnecting) = React.useState(_ => false)
   let (statusMessage, setStatusMessage) = React.useState(_ => None)
