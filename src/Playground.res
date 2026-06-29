@@ -258,7 +258,7 @@ module Inner = {
         <Wouter.Link href="/" className="link link-hover text-sm w-fit">
           {React.string("← Back to device setup")}
         </Wouter.Link>
-        <Components.Heading variant=Components.HeaderM className="mb-1">
+        <Components.Heading variant=Components.Heading.Large className="mb-1">
           {React.string("Button playground")}
         </Components.Heading>
         <Components.Text className="text-base-content/70">

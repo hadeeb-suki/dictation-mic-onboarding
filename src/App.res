@@ -17,7 +17,7 @@ module Flow = {
       className="mx-auto flex h-full max-w-3xl flex-col gap-6 overflow-y-auto bg-base-100 p-6 md:p-10"
     >
       <div>
-        <Components.Heading variant=Components.HeaderM className="mb-2">
+        <Components.Heading variant=Components.Heading.Large className="mb-2">
           {React.string("Dictation device setup")}
         </Components.Heading>
         <Components.Text className="text-base-content/70">

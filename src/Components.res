@@ -1,4 +1,4 @@
-let cx = (classes: array<option<string>>) => classes->Array.filterMap(c => c)->Array.join(" ")
+let cx = (classes: array<option<string>>) => classes->Array.keepSome->Array.join(" ")
 
 module Button = {
   @jsx.component
@@ -6,14 +6,13 @@ module Button = {
     <button className={cx([Some("btn"), className])} ?type_ ?disabled ?onClick> children </button>
 }
 
-type headingVariant = HeaderM | HeaderS
-
 module Heading = {
+  type variant = Large | Medium
   @jsx.component
-  let make = (~variant=HeaderM, ~className=?, ~children) =>
+  let make = (~variant=Large, ~className=?, ~children) =>
     switch variant {
-    | HeaderS => <h2 className={cx([Some("text-lg font-semibold"), className])}> children </h2>
-    | HeaderM => <h1 className={cx([Some("text-2xl font-bold"), className])}> children </h1>
+    | Medium => <h2 className={cx([Some("text-lg font-semibold"), className])}> children </h2>
+    | Large => <h1 className={cx([Some("text-2xl font-bold"), className])}> children </h1>
     }
 }
 
