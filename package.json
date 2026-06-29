@@ -14,7 +14,7 @@
   "dependencies": {
     "@rescript/react": "^0.15.0",
     "@rescript/runtime": "12.3.0",
-    "preact": "^10.29.2",
+    "preact": "^10.29.3",
     "wouter-preact": "^3.10.0"
   },
   "devDependencies": {
@@ -22,12 +22,10 @@
     "@rolldown/plugin-babel": "^0.2.3",
     "@tailwindcss/vite": "^4.3.1",
     "@types/node": "^24.13.2",
-    "@types/w3c-web-hid": "^1.0.7",
     "babel-plugin-react-compiler": "^1.0.0",
-    "daisyui": "^5.5.23",
+    "daisyui": "^5.6.3",
     "rescript": "12.3.0",
-    "tailwindcss": "^4.3.1",
-    "vite": "^8.0.16"
+    "vite": "^8.1.0"
   },
   "packageManager": "pnpm@11.0.0"
 }
