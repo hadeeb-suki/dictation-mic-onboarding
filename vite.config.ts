@@ -2,7 +2,7 @@ import * as path from "node:path";
 
 import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
-import babel from "@rolldown/plugin-babel";
+import react from "@vitejs/plugin-react-swc";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -14,7 +14,14 @@ export default defineConfig({
       react: "preact/hooks",
     },
   },
-  plugins: [babel({ plugins: ["babel-plugin-react-compiler"] }), tailwindcss()],
+  plugins: [
+    react({
+      useAtYourOwnRisk_mutateSwcOptions: (options) => {
+        options.jsc.transform.reactCompiler = true;
+      },
+    }),
+    tailwindcss(),
+  ],
   base: process.env.GITHUB_ACTIONS ? "/dictation-mic-onboarding/" : "/",
   build: { modulePreload: false },
 });
