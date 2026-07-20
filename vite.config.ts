@@ -17,6 +17,8 @@ export default defineConfig({
   plugins: [
     react({
       useAtYourOwnRisk_mutateSwcOptions: (options) => {
+        options.jsc ??= {};
+        options.jsc.transform ??= {};
         options.jsc.transform.reactCompiler = true;
       },
     }),

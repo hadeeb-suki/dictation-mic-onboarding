@@ -113,7 +113,7 @@ module Inner = {
       setIsConnecting(_ => true)
       let finish = () => setIsConnecting(_ => false)
 
-      let hid = WebHid.hid->Option.getOrThrow
+      let hid = WebHid.hid->Option.getUnsafe
       let picked = await hid->WebHid.requestDevice({filters: deviceFilters})
 
       switch picked->Array.at(0) {
@@ -224,7 +224,7 @@ module Inner = {
       | None => None
       | Some(conn) =>
         let abortController = Browser.makeAbortController()
-        let hid = WebHid.hid->Option.getOrThrow
+        let hid = WebHid.hid->Option.getUnsafe
 
         hid->WebHid.onDisconnect(event =>
           if event->WebHid.connectionDevice === conn.device {

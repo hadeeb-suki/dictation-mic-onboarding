@@ -21,7 +21,7 @@ type hidConnectionEvent
 @get external connectionDevice: hidConnectionEvent => hidDevice = "device"
 
 type listenerOptions = {
-  signal?: Browser.abortSignal,
+  signal: Browser.abortSignal,
   passive?: bool,
 }
 

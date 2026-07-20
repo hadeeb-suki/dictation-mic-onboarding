@@ -6,7 +6,7 @@ let make = (~onConnect: array<WebHid.hidDevice> => unit) => {
   let connectDevices = async () => {
     setIsConnecting(_ => true)
 
-    let hid = WebHid.hid->Option.getOrThrow
+    let hid = WebHid.hid->Option.getUnsafe
     let picked = await hid->WebHid.requestDevice({filters: []})
 
     if picked->Array.length == 0 {
