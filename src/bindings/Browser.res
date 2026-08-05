@@ -23,3 +23,5 @@ type anchorElement
 @val external alert: string => unit = "alert"
 
 @new external cloneMap: Map.t<'k, 'v> => Map.t<'k, 'v> = "Map"
+
+@val @scope("performance") external timeOrigin: float = "timeOrigin"

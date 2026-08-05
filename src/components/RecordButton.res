@@ -63,8 +63,6 @@ let make = (
 ) => {
   let (events, setEvents) = React.useState(_ => [])
 
-  let startTime = React.useMemo0(() => Date.now())
-
   React.useEffect1(() => {
     let abortController = Browser.makeAbortController()
 
@@ -138,9 +136,9 @@ let make = (
                 <Html.Pre key={Int.toString(index)} dataPrefix=">">
                   <code>
                     {React.string(
-                      Date.fromTime(
-                        startTime +. event->WebHid.timeStamp,
-                      )->Date.toLocaleTimeString ++
+                      (Browser.timeOrigin +. event->WebHid.timeStamp)
+                      ->Date.fromTime
+                      ->Date.toLocaleTimeString ++
                       " — " ++
                       hex,
                     )}
