@@ -1,86 +1,138 @@
-type exportDevice = {
-  productName: string,
-  vendorId: int,
-  productId: int,
-  usagePages: array<WebHid.hidCollectionInfo>,
-}
-
-type exportEvent = {
-  timeStamp: float,
-  buffer: string,
-  device: exportDevice,
-}
-
-type exportRecording = {
-  buttonId: string,
-  events: array<exportEvent>,
+type exportButton = {
+  number: int,
+  press: string,
+  release: string,
 }
 
 type exportData = {
   exportedAt: string,
+  deviceId: string,
   deviceName: string,
-  devices: array<exportDevice>,
-  buttonRecordings: array<exportRecording>,
+  vendorId: int,
+  productId: int,
+  buttons: array<exportButton>,
 }
 
-let toExportDevice = (device: WebHid.hidDevice): exportDevice => {
-  productName: device->WebHid.productName,
-  vendorId: device->WebHid.vendorId,
-  productId: device->WebHid.productId,
-  usagePages: device->WebHid.collections,
+let toExportData = (
+  ~deviceId: string,
+  ~deviceName: string,
+  ~vendorId: int,
+  ~productId: int,
+  buttons: array<Hid.buttonSignals>,
+): exportData => {
+  exportedAt: Date.make()->Date.toISOString,
+  deviceId,
+  deviceName,
+  vendorId,
+  productId,
+  buttons: (buttons :> array<exportButton>),
 }
 
 @jsx.component
-let make = (
-  ~devices: array<WebHid.hidDevice>,
-  ~buttonMappings: Map.t<Hid.buttonId, array<WebHid.hidInputReportEvent>>,
-) => {
-  let buildExport = (): exportData => {
-    let buttonRecordings = []
+let make = (~devices: array<WebHid.hidDevice>, ~capturedButtons: array<Hid.capturedButton>) => {
+  let device = devices->Array.getUnsafe(0)
+  let deviceName = device->WebHid.productName
+  let vendorId = device->WebHid.vendorId
+  let productId = device->WebHid.productId
+  let deviceId = Hid.deviceIdHex(vendorId, productId)
 
-    buttonMappings->Map.forEachWithKey((events, buttonId) => {
-      let exportedEvents = events->Array.map(event => {
-        timeStamp: event->WebHid.timeStamp,
-        buffer: Hid.bufferToHex(Uint8Array.fromBuffer(event->WebHid.data->DataView.buffer)),
-        device: toExportDevice(event->WebHid.eventDevice),
-      })
+  let signalsResult = Hid.signalsFromRecordings(capturedButtons)
 
-      buttonRecordings->Array.push({buttonId: Hid.buttonKey(buttonId), events: exportedEvents})
-    })
-
-    let deviceName = devices->Array.getUnsafe(0)->WebHid.productName
-
-    {
-      exportedAt: Date.make()->Date.toISOString,
-      deviceName,
-      devices: devices->Array.map(toExportDevice),
-      buttonRecordings,
-    }
+  let exportData = switch signalsResult {
+  | Ok(buttons) => Some(toExportData(~deviceId, ~deviceName, ~vendorId, ~productId, buttons))
+  | Error(_) => None
   }
 
-  let exportData = buildExport()
+  let exportJson = switch exportData {
+  | Some(data) => data->JSON.stringifyAny(~space=2)
+  | None => None
+  }
+
+  let safeName = deviceName->String.trim->String.replaceRegExp(/\s+/g, "-")->String.toLowerCase
 
   let handleExport = () => {
-    let safeName =
-      exportData.deviceName->String.trim->String.replaceRegExp(/\s+/g, "-")->String.toLowerCase
-
-    Hid.downloadJson(safeName ++ "-hid-debug.json", exportData)
-    Browser.alert("Configuration file downloaded. Send it to your Suki contact to finish setup.")
+    switch (signalsResult, exportData) {
+    | (Error(message), _) => Browser.alert(message)
+    | (_, Some(data)) => {
+        Hid.downloadJson(safeName ++ "-layout-buttons.json", data)
+        Browser.alert(
+          "Downloaded layout JSON. Use the press/release hex to fill in masks in layouts.ts.",
+        )
+      }
+    | _ => ()
+    }
   }
 
   <section className="card card-border border-primary/50 bg-base-100 animate-step-in">
     <div className="card-body">
-      <h2 className="card-title">
-        {React.string("Step 3 — Export and share the configuration")}
-      </h2>
+      <h2 className="card-title"> {React.string("Step 3 — Export layout buttons")} </h2>
       <Components.Text>
         {React.string(
-          "All buttons are captured. Download the configuration file and send it to your Suki contact — they'll use it to enable the device for your users.",
+          "Download press/release hex for each numbered button. Derive the mask yourself, then add the entry to layouts.ts.",
         )}
       </Components.Text>
+
+      <div className="overflow-x-auto">
+        <table className="table table-sm">
+          <thead>
+            <tr>
+              <th> {React.string("Number")} </th>
+              <th> {React.string("Press")} </th>
+              <th> {React.string("Release")} </th>
+            </tr>
+          </thead>
+          <tbody>
+            {switch signalsResult {
+            | Error(message) =>
+              <tr>
+                <td colSpan=3>
+                  <div role="alert" className="alert alert-warning">
+                    <span> {React.string(message)} </span>
+                  </div>
+                </td>
+              </tr>
+            | Ok(buttons) =>
+              React.array(
+                buttons->Array.map((button: Hid.buttonSignals) =>
+                  <tr key={Int.toString(button.number)}>
+                    <td> {React.string(Int.toString(button.number))} </td>
+                    <td>
+                      <code className="text-xs"> {React.string(button.press)} </code>
+                    </td>
+                    <td>
+                      <code className="text-xs"> {React.string(button.release)} </code>
+                    </td>
+                  </tr>
+                ),
+              )
+            }}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mockup-code text-xs">
+        <Html.Pre dataPrefix="">
+          <code>
+            {React.string(
+              switch exportJson {
+              | Some(json) => json
+              | None => "Fix capture issues above before exporting"
+              },
+            )}
+          </code>
+        </Html.Pre>
+      </div>
+
       <div className="card-actions">
-        <Components.Button className="btn-primary" onClick={_ => handleExport()}>
-          {React.string("Download configuration file")}
+        <Components.Button
+          className="btn-primary"
+          onClick={_ => handleExport()}
+          disabled={switch exportData {
+          | Some(_) => false
+          | None => true
+          }}
+        >
+          {React.string("Download JSON")}
         </Components.Button>
       </div>
     </div>

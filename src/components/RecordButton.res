@@ -1,15 +1,17 @@
 module RecordButtonActions = {
   @react.component
-  let make = (~eventCount, ~buttonId, ~onStartOver, ~onContinue) => {
+  let make = (~eventCount, ~buttonNumber, ~onStartOver, ~onContinue) => {
+    let buttonLabel = "button " ++ Int.toString(buttonNumber)
+
     if eventCount > 2 {
       <>
         <div role="alert" className="alert alert-error">
           <span>
-            {React.string("Too many button presses detected. Please press only the ")}
-            <strong> {React.string(Hid.buttonLabel(buttonId))} </strong>
-            {React.string(" button. Click ")}
-            <strong> {React.string("Start button capture over")} </strong>
-            {React.string(" below to restart.")}
+            {React.string("Too many button presses detected. Please press only ")}
+            <strong> {React.string(buttonLabel)} </strong>
+            {React.string(". Click ")}
+            <strong> {React.string("Start over")} </strong>
+            {React.string(" to restart.")}
           </span>
         </div>
         <div className="card-actions">
@@ -56,9 +58,8 @@ module RecordButtonActions = {
 @react.component
 let make = (
   ~devices: array<WebHid.hidDevice>,
-  ~buttonId: Hid.buttonId,
-  ~stepIndex: int,
-  ~totalSteps: int,
+  ~buttonNumber: int,
+  ~capturedCount: int,
   ~onSave: array<WebHid.hidInputReportEvent> => unit,
 ) => {
   let (events, setEvents) = React.useState(_ => [])
@@ -110,19 +111,22 @@ let make = (
   <section className="card card-border border-primary/50 bg-base-100 animate-step-in">
     <div className="card-body">
       <h2 className="card-title">
-        {React.string("Step 2 — Capture the ")}
-        <strong> {React.string(Hid.buttonLabel(buttonId))} </strong>
-        {React.string(" button")}
+        {React.string("Step 2 — Capture button ")}
+        <strong> {React.string(Int.toString(buttonNumber))} </strong>
         <span className="badge badge-soft badge-sm">
-          {React.string(Int.toString(stepIndex) ++ " of " ++ Int.toString(totalSteps))}
+          {React.string(
+            capturedCount == 0
+              ? "First button"
+              : Int.toString(capturedCount) ++ " captured so far",
+          )}
         </span>
       </h2>
       <Components.Text>
         <>
-          {React.string("On the device, press and hold the ")}
-          <strong> {React.string(Hid.buttonLabel(buttonId))} </strong>
+          {React.string("On the device, press and hold ")}
+          <strong> {React.string("button " ++ Int.toString(buttonNumber))} </strong>
           {React.string(
-            " button for at least 2 seconds, then release it. The signals it sends will appear below.",
+            " for at least 2 seconds, then release it. Use the same order you want for badge numbers in the layout (1, 2, 3…). The signals it sends will appear below.",
           )}
         </>
       </Components.Text>
@@ -148,7 +152,10 @@ let make = (
             )}
       </div>
       <RecordButtonActions
-        eventCount buttonId onStartOver={_ => setEvents(_ => [])} onContinue={_ => onSave(events)}
+        eventCount
+        buttonNumber
+        onStartOver={_ => setEvents(_ => [])}
+        onContinue={_ => onSave(events)}
       />
     </div>
   </section>

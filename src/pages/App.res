@@ -3,15 +3,21 @@ module Flow = {
   let make = () => {
     let (uniqueId, setUniqueId) = React.useState(_ => 0)
     let (devices, setDevices) = React.useState(_ => [])
-    let (buttonMappings, setButtonMappings) = React.useState(_ => Map.make())
+    let (capturedButtons, setCapturedButtons) = React.useState(_ => [])
+    let (captureDone, setCaptureDone) = React.useState(_ => false)
 
-    let allButtonsCaptured = Hid.keysToRecord->Array.every(key => buttonMappings->Map.has(key))
-    let currentStep = Array.length(devices) == 0 ? 1 : allButtonsCaptured ? 3 : 2
-
-    // The active capture is the first button that hasn't been recorded yet.
-    let activeCaptureKey = Hid.keysToRecord->Array.find(key => !(buttonMappings->Map.has(key)))
+    let hasDevice = Array.length(devices) > 0
+    let capturedCount = Array.length(capturedButtons)
+    let currentStep = !hasDevice ? 1 : captureDone ? 3 : 2
+    let nextButtonNumber = capturedCount + 1
 
     let stepClass = step => currentStep >= step ? "step step-primary" : "step"
+
+    let resetCapture = () => {
+      setCapturedButtons(_ => [])
+      setCaptureDone(_ => false)
+      setUniqueId(x => x + 1)
+    }
 
     <div
       className="mx-auto flex h-full max-w-3xl flex-col gap-6 overflow-y-auto bg-base-100 p-6 md:p-10"
@@ -22,7 +28,7 @@ module Flow = {
         </Components.Heading>
         <Components.Text className="text-base-content/70">
           {React.string(
-            "This tool helps you onboard a new microphone or dictation device for your organization. Follow the steps below to connect the device and capture its buttons — it only takes a few minutes. When you're done, you'll download a configuration file to send to your Suki contact, who will enable the device for your users.",
+            "This tool helps you onboard a new microphone or dictation device. Connect the device, record every physical button in badge order, then download a layout snippet with each button's number and HID mask for layouts.ts.",
           )}
         </Components.Text>
       </div>
@@ -79,54 +85,65 @@ module Flow = {
       {switch devices {
       | [] => React.null
       | devices =>
-        React.array(
-          Hid.keysToRecord->Array.mapWithIndex((key, index) =>
-            switch buttonMappings->Map.get(key) {
-            | Some(captured) => {
-                let distinctSignals = Hid.countDistinctSignals(captured)
-                let tooManySignals = distinctSignals > 2
+        <>
+          {React.array(
+            capturedButtons->Array.map((recording: Hid.capturedButton) => {
+              let distinctSignals = Hid.countDistinctSignals(recording.events)
+              let tooManySignals = distinctSignals > 2
 
-                <CompletedStep
-                  key={Hid.buttonKey(key)}
-                  variant={tooManySignals ? CompletedStep.Warning : CompletedStep.Success}
-                  title={"Step 2 — " ++ Hid.buttonLabel(key) ++ " button captured"}
-                  summary={React.string(
-                    tooManySignals
-                      ? Int.toString(
-                          distinctSignals,
-                        ) ++ " distinct signals recorded — more than expected. This may include extra presses; use \"Start button capture over\" to redo it if needed."
-                      : Int.toString(distinctSignals) ++ " distinct signals recorded.",
-                  )}
-                />
-              }
-            | None =>
-              if activeCaptureKey == Some(key) {
-                <RecordButton
-                  key={Hid.buttonKey(key) ++ Int.toString(uniqueId)}
-                  devices
-                  buttonId=key
-                  stepIndex={index + 1}
-                  totalSteps={Array.length(Hid.keysToRecord)}
-                  onSave={events =>
-                    setButtonMappings(previous => {
-                      let newMap = Browser.cloneMap(previous)
-                      newMap->Map.set(key, events)
-                      newMap
-                    })}
-                />
-              } else {
-                React.null
-              }
-            }
-          ),
-        )
+              <CompletedStep
+                key={"button-" ++ Int.toString(recording.number)}
+                variant={tooManySignals ? CompletedStep.Warning : CompletedStep.Success}
+                title={"Step 2 — Button " ++ Int.toString(recording.number) ++ " captured"}
+                summary={React.string(
+                  tooManySignals
+                    ? Int.toString(
+                        distinctSignals,
+                      ) ++ " distinct signals recorded — more than expected. This may include extra presses; use \"Start button capture over\" to redo it if needed."
+                    : Int.toString(distinctSignals) ++ " distinct signals recorded.",
+                )}
+              />
+            }),
+          )}
+          {captureDone
+            ? React.null
+            : <RecordButton
+                key={"capture-" ++ Int.toString(nextButtonNumber) ++ "-" ++ Int.toString(uniqueId)}
+                devices
+                buttonNumber=nextButtonNumber
+                capturedCount
+                onSave={events =>
+                  setCapturedButtons(previous => {
+                    let next: Hid.capturedButton = {number: nextButtonNumber, events}
+                    previous->Array.concat([next])
+                  })}
+              />}
+          {captureDone || capturedCount == 0
+            ? React.null
+            : <div className="card card-border border-primary/50 bg-base-100">
+                <div className="card-body py-4">
+                  <Components.Text className="text-base-content/70 text-sm">
+                    {React.string(
+                      "Record every physical button you want in the layout. When you're finished, continue to export.",
+                    )}
+                  </Components.Text>
+                  <div className="card-actions">
+                    <Components.Button
+                      className="btn-primary" onClick={_ => setCaptureDone(_ => true)}
+                    >
+                      {React.string("Done capturing buttons")}
+                    </Components.Button>
+                  </div>
+                </div>
+              </div>}
+        </>
       }}
 
       {switch devices {
       | [] => React.null
       | devices =>
-        switch allButtonsCaptured {
-        | true => <ExportStep devices buttonMappings />
+        switch captureDone {
+        | true => <ExportStep devices capturedButtons />
         | false => React.null
         }
       }}
@@ -139,19 +156,12 @@ module Flow = {
             className="btn-outline"
             onClick={_ => {
               setDevices(_ => [])
-              setButtonMappings(_ => Map.make())
-              setUniqueId(x => x + 1)
+              resetCapture()
             }}
           >
             {React.string("Connect a different device")}
           </Components.Button>
-          <Components.Button
-            className="btn-outline"
-            onClick={_ => {
-              setButtonMappings(_ => Map.make())
-              setUniqueId(x => x + 1)
-            }}
-          >
+          <Components.Button className="btn-outline" onClick={_ => resetCapture()}>
             {React.string("Start button capture over")}
           </Components.Button>
         </div>
