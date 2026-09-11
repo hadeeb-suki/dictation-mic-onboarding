@@ -1,22 +1,8 @@
 type connection = {
   device: WebHid.hidDevice,
   config: Config.deviceInfo,
-}
-
-type buttonState = {
-  record: bool,
-  nextField: bool,
-  previousField: bool,
-}
-
-let noButtons = {record: false, nextField: false, previousField: false}
-
-let getButton = (state, key) => {
-  switch key {
-  | Hid.NextField => state.nextField
-  | Hid.Record => state.record
-  | Hid.PreviousField => state.previousField
-  }
+  deviceId: string,
+  layout: option<MicLayouts.layout>,
 }
 
 type action = Pressed | Released
@@ -30,7 +16,8 @@ let actionLabel = action =>
 type logEntry = {
   id: int,
   time: string,
-  button: Hid.buttonId,
+  buttonNumber: int,
+  buttonLabel: string,
   action: action,
   hex: string,
 }
@@ -54,22 +41,6 @@ let matchConfig = (device: WebHid.hidDevice): option<Config.deviceInfo> =>
     ->WebHid.collections
     ->Array.some(collection => collection->WebHid.collectionUsagePage == config.usagePage)
   )
-
-// Decodes the pressed buttons from an input report using the device config.
-// Mirrors the bitmask decoding used by the production HidDevice class.
-let decodeButtons = (data: DataView.t, config: Config.deviceInfo): option<buttonState> => {
-  if config.bufferIndex >= DataView.byteLength(data) {
-    None
-  } else {
-    let inputByte = DataView.getUint8(data, config.bufferIndex)
-
-    Some({
-      record: Int.bitwiseAnd(inputByte, config.recordButton) != 0,
-      nextField: Int.bitwiseAnd(inputByte, config.nextFieldButton) != 0,
-      previousField: Int.bitwiseAnd(inputByte, config.previousFieldButton) != 0,
-    })
-  }
-}
 
 let toHex = value => "0x" ++ value->Int.toString(~radix=16)->String.padStart(2, "0")
 
@@ -103,6 +74,7 @@ module Inner = {
     let (isConnecting, setIsConnecting) = React.useState(_ => false)
     let (statusMessage, setStatusMessage) = React.useState(_ => None)
     let (logs, setLogs) = React.useState(_ => [])
+    let (pressedNumbers, setPressedNumbers) = React.useState(_ => [])
 
     let logIdRef = React.useRef(0)
 
@@ -142,7 +114,14 @@ module Inner = {
                 }
               }
             }
-            setConnection(_ => Some({device, config}))
+            let deviceId = MicLayouts.deviceIdHex(config.vendorId, config.productId)
+            setPressedNumbers(_ => [])
+            setConnection(_ => Some({
+              device,
+              config,
+              deviceId,
+              layout: MicLayouts.resolve(deviceId),
+            }))
           }
         }
       }
@@ -154,6 +133,7 @@ module Inner = {
       | None => ()
       | Some(conn) =>
         setConnection(_ => None)
+        setPressedNumbers(_ => [])
         if conn.device->WebHid.opened {
           try {
             await conn.device->WebHid.close
@@ -164,35 +144,39 @@ module Inner = {
       }
     }
 
-    // Listen for input reports and log every button state change.
+    // Listen for input reports, update badge highlights, and log transitions.
     React.useEffect1(() => {
       switch connection {
       | None => None
-      | Some({device, config}) =>
+      | Some({device, config, layout: None}) =>
+        // No layout artwork — nothing to decode for badges.
+        let _ = (device, config)
+        None
+      | Some({device, config, layout: Some(layout)}) =>
         let abortController = Browser.makeAbortController()
-        // Track the previous state so we only log transitions (press / release),
-        // which also collapses the duplicate reports some devices emit.
-        let previousState = ref(noButtons)
+        let previousPressed = ref([])
 
         device->WebHid.onInputReport(event =>
-          switch decodeButtons(event->WebHid.data, config) {
+          switch HidDecode.readButtonValue(event->WebHid.data, layout, config.bufferIndex) {
           | None => ()
-          | Some(currentState) =>
+          | Some(buttonValue) =>
+            let currentPressed = HidDecode.pressedNumbers(layout, buttonValue)
             let hex = Hid.bufferToHex(Uint8Array.fromBuffer(event->WebHid.data->DataView.buffer))
             let time = Date.make()->Date.toLocaleTimeString
             let transitions = []
 
-            Hid.keysToRecord->Array.forEach(
-              key => {
-                let nowOn = getButton(currentState, key)
-
-                if nowOn != getButton(previousState.contents, key) {
+            layout.buttons->Array.forEach(
+              button => {
+                let nowOn = HidDecode.isNumberPressed(currentPressed, button.number)
+                let wasOn = HidDecode.isNumberPressed(previousPressed.contents, button.number)
+                if nowOn != wasOn {
                   let id = logIdRef.current
                   logIdRef.current = id + 1
                   transitions->Array.push({
                     id,
                     time,
-                    button: key,
+                    buttonNumber: button.number,
+                    buttonLabel: button.label,
                     action: nowOn ? Pressed : Released,
                     hex,
                   })
@@ -200,7 +184,8 @@ module Inner = {
               },
             )
 
-            previousState := currentState
+            previousPressed := currentPressed
+            setPressedNumbers(_ => currentPressed)
 
             if transitions->Array.length > 0 {
               setLogs(
@@ -229,6 +214,7 @@ module Inner = {
         hid->WebHid.onDisconnect(event =>
           if event->WebHid.connectionDevice === conn.device {
             setConnection(_ => None)
+            setPressedNumbers(_ => [])
             setStatusMessage(_ => Some(displayName(conn) ++ " was disconnected."))
           }
         , {passive: true, signal: abortController->Browser.signal})
@@ -263,7 +249,7 @@ module Inner = {
         </Components.Heading>
         <Components.Text className="text-base-content/70">
           {React.string(
-            "Connect a device and press its buttons. Each press and release is decoded with the matched device config and logged below.",
+            "Connect a device and press its buttons. Numbers on the mic light up when pressed, and each press/release is logged below.",
           )}
         </Components.Text>
       </div>
@@ -280,18 +266,25 @@ module Inner = {
                 className="text-base-content/70 grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:grid-cols-3"
               >
                 <span> {React.string("Config: " ++ conn.config.deviceName)} </span>
+                <span> {React.string("Device id: " ++ conn.deviceId)} </span>
                 <span> {React.string("Vendor: " ++ toHex(conn.config.vendorId))} </span>
                 <span> {React.string("Product: " ++ toHex(conn.config.productId))} </span>
                 <span> {React.string("Usage page: " ++ toHex(conn.config.usagePage))} </span>
                 <span>
                   {React.string("Buffer index: " ++ Int.toString(conn.config.bufferIndex))}
                 </span>
-                <span> {React.string("Record: " ++ toHex(conn.config.recordButton))} </span>
-                <span> {React.string("Next: " ++ toHex(conn.config.nextFieldButton))} </span>
-                <span>
-                  {React.string("Previous: " ++ toHex(conn.config.previousFieldButton))}
-                </span>
               </div>
+              {switch conn.layout {
+              | Some(layout) => <MicLayoutPreview layout pressedNumbers />
+              | None =>
+                <div role="alert" className="alert alert-warning">
+                  <span>
+                    {React.string(
+                      "No layout artwork for this device id yet. Add an entry in MicLayouts (aligned with layouts.ts).",
+                    )}
+                  </span>
+                </div>
+              }}
             </>
           | None =>
             <>
@@ -382,8 +375,10 @@ module Inner = {
                       <code>
                         {React.string(
                           entry.time ++
-                          "  " ++
-                          Hid.buttonLabel(entry.button) ++
+                          "  #" ++
+                          Int.toString(entry.buttonNumber) ++
+                          " " ++
+                          entry.buttonLabel ++
                           " " ++
                           actionLabel(entry.action) ++
                           "  ·  " ++
