@@ -5,7 +5,13 @@
       "source": "saadeghi/daisyui",
       "sourceType": "github",
       "skillPath": "skills/daisyui/SKILL.md",
-      "computedHash": "a98221a5c8f50bfb0dbaf4d0e52982598981bc5e472806814e118ee7df2a9712"
+      "computedHash": "f70b06883160802b5b04db0504647cc140bd38cf7eb941183a38f44a179b27ca"
+    },
+    "modern-web-guidance": {
+      "source": "GoogleChrome/modern-web-guidance",
+      "sourceType": "github",
+      "skillPath": "skills/modern-web-guidance/SKILL.md",
+      "computedHash": "da9b9c833351f0575ca7482f3c8decc8e24b02b76dea71f138738283c701b4c5"
     }
   }
 }
