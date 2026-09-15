@@ -17,15 +17,10 @@ let buttonKey = id =>
   | PreviousField => "previousField"
   }
 
-type capturedButton = {
-  number: int,
-  events: array<WebHid.hidInputReportEvent>,
-}
-
-type buttonSignals = {
-  number: int,
-  press: string,
-  release: string,
+/** One HID input report — only raw capture data lives in state. */
+type loggedEvent = {
+  timeStamp: float,
+  hex: string,
 }
 
 let bufferToHex = (data: Uint8Array.t): string => {
@@ -43,66 +38,91 @@ let bufferToHex = (data: Uint8Array.t): string => {
 let eventToBytes = (event: WebHid.hidInputReportEvent): Uint8Array.t =>
   Uint8Array.fromBuffer(event->WebHid.data->DataView.buffer)
 
-let countDistinctSignals = (events: array<WebHid.hidInputReportEvent>): int => {
-  let uniqueBuffers = Set.make()
+let eventToHex = (event: WebHid.hidInputReportEvent): string => bufferToHex(eventToBytes(event))
 
-  events->Array.forEach(event => {
-    uniqueBuffers->Set.add(bufferToHex(eventToBytes(event)))
-  })
+/**
+  UI-only: button number for each event, in log order.
+  Each button collects up to two distinct signals (press, then release). A new
+  distinct hex after that opens the next button. A shared release pattern still
+  stays on the open button while it has fewer than two distinct hexes.
+*/
+let buttonNumberPerEvent = (events: array<loggedEvent>): array<int> => {
+  events->Array.reduceWithIndex([], (numbers, event, index) => {
+    let buttonNumber = switch numbers->Array.at(-1) {
+    | None => 1
+    | Some(current) => {
+        let distinct = Set.make()
+        numbers->Array.forEachWithIndex((bn, i) => {
+          if bn == current {
+            switch events->Array.get(i) {
+            | Some(prior) => distinct->Set.add(prior.hex)
+            | None => ()
+            }
+          }
+        })
 
-  uniqueBuffers->Set.size
-}
+        if distinct->Set.has(event.hex) {
+          current
+        } else if distinct->Set.size < 2 {
+          current
+        } else {
+          let rec findPriorButton = (i: int) =>
+            if i >= index {
+              None
+            } else {
+              switch (events->Array.get(i), numbers->Array.get(i)) {
+              | (Some(prior), Some(bn)) if prior.hex == event.hex => Some(bn)
+              | _ => findPriorButton(i + 1)
+              }
+            }
 
-/** First two distinct report buffers (press then release), in capture order. */
-let distinctSignalBuffers = (events: array<WebHid.hidInputReportEvent>): array<Uint8Array.t> => {
-  let result = []
-  let seen = Set.make()
-
-  events->Array.forEach(event => {
-    if Array.length(result) < 2 {
-      let bytes = eventToBytes(event)
-      let hex = bufferToHex(bytes)
-      if !(seen->Set.has(hex)) {
-        seen->Set.add(hex)
-        result->Array.push(bytes)
+          switch findPriorButton(0) {
+          | Some(bn) => bn
+          | None => current + 1
+          }
+        }
       }
     }
-  })
 
-  result
+    numbers->Array.concat([buttonNumber])
+  })
 }
 
-type signalsResult =
-  | Ok(array<buttonSignals>)
-  | Error(string)
-
-let rec signalsFromRecordings = (
-  recordings: array<capturedButton>,
-  ~index=0,
-): signalsResult =>
-  switch recordings->Array.get(index) {
-  | None => Ok([])
-  | Some(recording) =>
-    switch distinctSignalBuffers(recording.events) {
-    | [press, release] =>
-      switch signalsFromRecordings(recordings, ~index=index + 1) {
-      | Error(_) as err => err
-      | Ok(rest) =>
-        Ok([
-          {
-            number: recording.number,
-            press: bufferToHex(press),
-            release: bufferToHex(release),
-          },
-          ...rest,
-        ])
-      }
-    | _ =>
-      Error(
-        "Button " ++ Int.toString(recording.number) ++ " needs a clear press and release signal.",
-      )
-    }
+let activeButtonFromEvents = (events: array<loggedEvent>): int =>
+  switch buttonNumberPerEvent(events)->Array.at(-1) {
+  | Some(n) => n
+  | None => 1
   }
+
+/** Unique button numbers present in the log, in ascending order. UI only. */
+let buttonNumbersInLog = (events: array<loggedEvent>): array<int> => {
+  let seen = Set.make()
+  let numbers = []
+
+  buttonNumberPerEvent(events)->Array.forEach(bn => {
+    if !(seen->Set.has(bn)) {
+      seen->Set.add(bn)
+      numbers->Array.push(bn)
+    }
+  })
+
+  numbers->Array.toSorted(Int.compare)
+}
+
+/** Events (with original index) for a button number. UI only. */
+let eventsForButton = (events: array<loggedEvent>, buttonNumber: int): array<(
+  int,
+  loggedEvent,
+)> => {
+  let numbers = buttonNumberPerEvent(events)
+
+  events->Array.reduceWithIndex([], (acc, event, index) => {
+    switch numbers->Array.get(index) {
+    | Some(bn) if bn == buttonNumber => acc->Array.concat([(index, event)])
+    | _ => acc
+    }
+  })
+}
 
 let deviceIdHex = (vendorId: int, productId: int): string =>
   Int.toString(vendorId, ~radix=16)->String.padStart(4, "0") ++

@@ -3,18 +3,16 @@ module Flow = {
   let make = () => {
     let (uniqueId, setUniqueId) = React.useState(_ => 0)
     let (devices, setDevices) = React.useState(_ => [])
-    let (capturedButtons, setCapturedButtons) = React.useState(_ => [])
+    let (events, setEvents) = React.useState(_ => [])
     let (captureDone, setCaptureDone) = React.useState(_ => false)
 
     let hasDevice = Array.length(devices) > 0
-    let capturedCount = Array.length(capturedButtons)
     let currentStep = !hasDevice ? 1 : captureDone ? 3 : 2
-    let nextButtonNumber = capturedCount + 1
 
     let stepClass = step => currentStep >= step ? "step step-primary" : "step"
 
     let resetCapture = () => {
-      setCapturedButtons(_ => [])
+      setEvents(_ => [])
       setCaptureDone(_ => false)
       setUniqueId(x => x + 1)
     }
@@ -28,7 +26,7 @@ module Flow = {
         </Components.Heading>
         <Components.Text className="text-base-content/70">
           {React.string(
-            "This tool helps you onboard a new microphone or dictation device. Connect the device, record every physical button in badge order, then download a layout snippet with each button's number and HID mask for layouts.ts.",
+            "Connect a microphone or dictation device, press each physical button in order, then download a JSON log of every HID report.",
           )}
         </Components.Text>
       </div>
@@ -82,75 +80,34 @@ module Flow = {
       | None => <ConnectDevice onConnect={picked => setDevices(_ => picked)} />
       }}
 
-      {switch devices {
-      | [] => React.null
-      | devices =>
-        <>
-          {React.array(
-            capturedButtons->Array.map((recording: Hid.capturedButton) => {
-              let distinctSignals = Hid.countDistinctSignals(recording.events)
-              let tooManySignals = distinctSignals > 2
-
-              <CompletedStep
-                key={"button-" ++ Int.toString(recording.number)}
-                variant={tooManySignals ? CompletedStep.Warning : CompletedStep.Success}
-                title={"Step 2 — Button " ++ Int.toString(recording.number) ++ " captured"}
-                summary={React.string(
-                  tooManySignals
-                    ? Int.toString(
-                        distinctSignals,
-                      ) ++ " distinct signals recorded — more than expected. This may include extra presses; use \"Start button capture over\" to redo it if needed."
-                    : Int.toString(distinctSignals) ++ " distinct signals recorded.",
-                )}
-              />
-            }),
-          )}
-          {captureDone
-            ? React.null
-            : <RecordButton
-                key={"capture-" ++ Int.toString(nextButtonNumber) ++ "-" ++ Int.toString(uniqueId)}
-                devices
-                buttonNumber=nextButtonNumber
-                capturedCount
-                onSave={events =>
-                  setCapturedButtons(previous => {
-                    let next: Hid.capturedButton = {number: nextButtonNumber, events}
-                    previous->Array.concat([next])
-                  })}
-              />}
-          {captureDone || capturedCount == 0
-            ? React.null
-            : <div className="card card-border border-primary/50 bg-base-100">
-                <div className="card-body py-4">
-                  <Components.Text className="text-base-content/70 text-sm">
-                    {React.string(
-                      "Record every physical button you want in the layout. When you're finished, continue to export.",
-                    )}
-                  </Components.Text>
-                  <div className="card-actions">
-                    <Components.Button
-                      className="btn-primary" onClick={_ => setCaptureDone(_ => true)}
-                    >
-                      {React.string("Done capturing buttons")}
-                    </Components.Button>
-                  </div>
-                </div>
-              </div>}
-        </>
-      }}
-
-      {switch devices {
-      | [] => React.null
-      | devices =>
+      {switch hasDevice {
+      | false => React.null
+      | true =>
         switch captureDone {
-        | true => <ExportStep devices capturedButtons />
-        | false => React.null
+        | true =>
+          <CompletedStep
+            title="Step 2 — Recording done"
+            summary={<> {React.string("Recording done. Export the log to continue.")} </>}
+          />
+        | false =>
+          <RecordButtons
+            key={Int.toString(uniqueId)}
+            devices
+            events
+            onNewEvent={entry => setEvents(prev => [...prev, entry])}
+            onCaptureDone={() => setCaptureDone(_ => true)}
+          />
         }
       }}
 
-      {switch devices {
-      | [] => React.null
-      | _ =>
+      {switch captureDone {
+      | true => <ExportStep devices events />
+      | false => React.null
+      }}
+
+      {switch hasDevice {
+      | false => React.null
+      | true =>
         <div className="flex flex-wrap gap-3">
           <Components.Button
             className="btn-outline"

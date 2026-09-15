@@ -1,7 +1,6 @@
-type exportButton = {
-  number: int,
-  press: string,
-  release: string,
+type exportEvent = {
+  time: string,
+  hex: string,
 }
 
 type exportData = {
@@ -10,7 +9,12 @@ type exportData = {
   deviceName: string,
   vendorId: int,
   productId: int,
-  buttons: array<exportButton>,
+  events: array<exportEvent>,
+}
+
+let toExportEvent = (entry: Hid.loggedEvent): exportEvent => {
+  time: entry.timeStamp->Date.fromTime->Date.toISOString,
+  hex: entry.hex,
 }
 
 let toExportData = (
@@ -18,119 +22,111 @@ let toExportData = (
   ~deviceName: string,
   ~vendorId: int,
   ~productId: int,
-  buttons: array<Hid.buttonSignals>,
+  events: array<Hid.loggedEvent>,
 ): exportData => {
   exportedAt: Date.make()->Date.toISOString,
   deviceId,
   deviceName,
   vendorId,
   productId,
-  buttons: (buttons :> array<exportButton>),
+  events: events->Array.map(toExportEvent),
 }
 
 @jsx.component
-let make = (~devices: array<WebHid.hidDevice>, ~capturedButtons: array<Hid.capturedButton>) => {
+let make = (~devices: array<WebHid.hidDevice>, ~events: array<Hid.loggedEvent>) => {
   let device = devices->Array.getUnsafe(0)
   let deviceName = device->WebHid.productName
   let vendorId = device->WebHid.vendorId
   let productId = device->WebHid.productId
   let deviceId = Hid.deviceIdHex(vendorId, productId)
 
-  let signalsResult = Hid.signalsFromRecordings(capturedButtons)
-
-  let exportData = switch signalsResult {
-  | Ok(buttons) => Some(toExportData(~deviceId, ~deviceName, ~vendorId, ~productId, buttons))
-  | Error(_) => None
-  }
-
-  let exportJson = switch exportData {
-  | Some(data) => data->JSON.stringifyAny(~space=2)
-  | None => None
-  }
-
+  let exportData = toExportData(~deviceId, ~deviceName, ~vendorId, ~productId, events)
+  let exportJson = exportData->JSON.stringifyAny(~space=2)->Option.getOr("")
+  let buttonNumbers = Hid.buttonNumbersInLog(events)
+  let buttonNumberPerEvent = Hid.buttonNumberPerEvent(events)
   let safeName = deviceName->String.trim->String.replaceRegExp(/\s+/g, "-")->String.toLowerCase
+  let canExport = Array.length(events) > 0
 
   let handleExport = () => {
-    switch (signalsResult, exportData) {
-    | (Error(message), _) => Browser.alert(message)
-    | (_, Some(data)) => {
-        Hid.downloadJson(safeName ++ "-layout-buttons.json", data)
-        Browser.alert(
-          "Downloaded layout JSON. Use the press/release hex to fill in masks in layouts.ts.",
-        )
-      }
-    | _ => ()
-    }
+    Hid.downloadJson(safeName ++ "-hid-events.json", exportData)
+    Browser.alert("Downloaded HID event log JSON.")
   }
 
   <section className="card card-border border-primary/50 bg-base-100 animate-step-in">
-    <div className="card-body">
-      <h2 className="card-title"> {React.string("Step 3 — Export layout buttons")} </h2>
+    <div className="card-body gap-4">
+      <h2 className="card-title"> {React.string("Step 3 — Export event log")} </h2>
       <Components.Text>
         {React.string(
-          "Download press/release hex for each numbered button. Derive the mask yourself, then add the entry to layouts.ts.",
+          "All captured HID reports are exported as a single events array (time + hex). Button numbers below are UI-only.",
         )}
       </Components.Text>
+
+      <div className="stats stats-vertical shadow sm:stats-horizontal">
+        <div className="stat">
+          <div className="stat-title"> {React.string("Events")} </div>
+          <div className="stat-value text-primary text-2xl">
+            {React.string(Int.toString(Array.length(events)))}
+          </div>
+        </div>
+        <div className="stat">
+          <div className="stat-title"> {React.string("Buttons")} </div>
+          <div className="stat-value text-2xl">
+            {React.string(Int.toString(Array.length(buttonNumbers)))}
+          </div>
+        </div>
+      </div>
 
       <div className="overflow-x-auto">
         <table className="table table-sm">
           <thead>
             <tr>
-              <th> {React.string("Number")} </th>
-              <th> {React.string("Press")} </th>
-              <th> {React.string("Release")} </th>
+              <th> {React.string("Button")} </th>
+              <th> {React.string("Time")} </th>
+              <th> {React.string("Hex")} </th>
             </tr>
           </thead>
           <tbody>
-            {switch signalsResult {
-            | Error(message) =>
-              <tr>
-                <td colSpan=3>
-                  <div role="alert" className="alert alert-warning">
-                    <span> {React.string(message)} </span>
-                  </div>
-                </td>
-              </tr>
-            | Ok(buttons) =>
-              React.array(
-                buttons->Array.map((button: Hid.buttonSignals) =>
-                  <tr key={Int.toString(button.number)}>
-                    <td> {React.string(Int.toString(button.number))} </td>
-                    <td>
-                      <code className="text-xs"> {React.string(button.press)} </code>
-                    </td>
-                    <td>
-                      <code className="text-xs"> {React.string(button.release)} </code>
-                    </td>
-                  </tr>
-                ),
-              )
-            }}
+            {Array.length(events) == 0
+              ? <tr>
+                  <td colSpan=3>
+                    <div role="alert" className="alert alert-warning">
+                      <span> {React.string("No events to export.")} </span>
+                    </div>
+                  </td>
+                </tr>
+              : React.array(
+                  events->Array.mapWithIndex((entry, index) =>
+                    <tr key={Int.toString(index)}>
+                      <td>
+                        {React.string(
+                          switch buttonNumberPerEvent->Array.get(index) {
+                          | Some(bn) => Int.toString(bn)
+                          | None => "—"
+                          },
+                        )}
+                      </td>
+                      <td className="text-xs whitespace-nowrap">
+                        {React.string(entry.timeStamp->Date.fromTime->Date.toLocaleTimeString)}
+                      </td>
+                      <td>
+                        <code className="text-xs"> {React.string(entry.hex)} </code>
+                      </td>
+                    </tr>
+                  ),
+                )}
           </tbody>
         </table>
       </div>
 
-      <div className="mockup-code text-xs">
+      <div className="mockup-code max-h-64 overflow-auto text-xs">
         <Html.Pre dataPrefix="">
-          <code>
-            {React.string(
-              switch exportJson {
-              | Some(json) => json
-              | None => "Fix capture issues above before exporting"
-              },
-            )}
-          </code>
+          <code> {React.string(exportJson)} </code>
         </Html.Pre>
       </div>
 
       <div className="card-actions">
         <Components.Button
-          className="btn-primary"
-          onClick={_ => handleExport()}
-          disabled={switch exportData {
-          | Some(_) => false
-          | None => true
-          }}
+          className="btn-primary" onClick={_ => handleExport()} disabled={!canExport}
         >
           {React.string("Download JSON")}
         </Components.Button>
