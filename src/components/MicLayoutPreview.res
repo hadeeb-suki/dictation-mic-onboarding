@@ -1,12 +1,12 @@
 @react.component
-let make = (~layout: MicLayouts.layout, ~pressedNumbers: array<int>) => {
+let make = (~layout: Config.layout, ~pressedNumbers: array<int>) => {
   let artwork = layout.artwork
 
   <div
     className="bg-base-200 relative mx-auto overflow-hidden rounded-box"
     style={{
-      width: Float.toString(MicLayouts.panelWidth) ++ "px",
-      height: Float.toString(MicLayouts.panelHeight) ++ "px",
+      width: Float.toString(Config.panelWidth) ++ "px",
+      height: Float.toString(Config.panelHeight) ++ "px",
     }}
   >
     <div
@@ -24,28 +24,32 @@ let make = (~layout: MicLayouts.layout, ~pressedNumbers: array<int>) => {
         className="pointer-events-none h-full w-full max-w-none select-none"
         draggable=false
       />
-      {React.array(
-        layout.buttons->Array.map(button => {
-          let isPressed = HidDecode.isNumberPressed(pressedNumbers, button.number)
-          <span
-            key={Int.toString(button.number)}
-            title=button.label
-            ariaLabel=button.label
-            className={Components.cx([
-              Some(
-                "badge badge-sm absolute -translate-x-1/2 -translate-y-1/2 font-semibold transition-all",
-              ),
-              Some(isPressed ? "badge-primary scale-110 shadow-md" : "badge-neutral badge-soft"),
-            ])}
-            style={{
-              left: Float.toString(button.badge.x *. 100.) ++ "%",
-              top: Float.toString(button.badge.y *. 100.) ++ "%",
-            }}
-          >
-            {React.string(Int.toString(button.number))}
-          </span>
-        }),
-      )}
+      {switch layout.buttons {
+      | Config.WithoutBadge(_) => <div> {"ArtWork Not available"->React.string} </div>
+      | Config.WithBadge(buttons) =>
+        React.array(
+          buttons->Array.map(button => {
+            let isPressed = HidDecode.isNumberPressed(pressedNumbers, button.number)
+            <span
+              key={Int.toString(button.number)}
+              title=button.label
+              ariaLabel=button.label
+              className={Components.cx([
+                Some(
+                  "badge badge-sm absolute -translate-x-1/2 -translate-y-1/2 font-semibold transition-all",
+                ),
+                Some(isPressed ? "badge-primary scale-110 shadow-md" : "badge-neutral badge-soft"),
+              ])}
+              style={{
+                left: Float.toString(button.badge.x *. 100.) ++ "%",
+                top: Float.toString(button.badge.y *. 100.) ++ "%",
+              }}
+            >
+              {React.string(Int.toString(button.number))}
+            </span>
+          }),
+        )
+      }}
     </div>
   </div>
 }

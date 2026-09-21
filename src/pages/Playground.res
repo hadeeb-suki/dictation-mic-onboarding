@@ -2,7 +2,6 @@ type connection = {
   device: WebHid.hidDevice,
   config: Config.deviceInfo,
   deviceId: string,
-  layout: option<MicLayouts.layout>,
 }
 
 type action = Pressed | Released
@@ -114,13 +113,12 @@ module Inner = {
                 }
               }
             }
-            let deviceId = MicLayouts.deviceIdHex(config.vendorId, config.productId)
+            let deviceId = Hid.deviceIdHex(config.vendorId, config.productId)
             setPressedNumbers(_ => [])
             setConnection(_ => Some({
               device,
               config,
               deviceId,
-              layout: MicLayouts.resolve(deviceId),
             }))
           }
         }
@@ -148,11 +146,8 @@ module Inner = {
     React.useEffect1(() => {
       switch connection {
       | None => None
-      | Some({device, config, layout: None}) =>
-        // No layout artwork — nothing to decode for badges.
-        let _ = (device, config)
-        None
-      | Some({device, config, layout: Some(layout)}) =>
+      | Some({device, config}) =>
+        let layout = config.layout
         let abortController = Browser.makeAbortController()
         let previousPressed = ref([])
 
@@ -165,7 +160,7 @@ module Inner = {
             let time = Date.make()->Date.toLocaleTimeString
             let transitions = []
 
-            layout.buttons->Array.forEach(
+            HidDecode.getWithoutBadgeButtons(layout)->Array.forEach(
               button => {
                 let nowOn = HidDecode.isNumberPressed(currentPressed, button.number)
                 let wasOn = HidDecode.isNumberPressed(previousPressed.contents, button.number)
@@ -274,17 +269,7 @@ module Inner = {
                   {React.string("Buffer index: " ++ Int.toString(conn.config.bufferIndex))}
                 </span>
               </div>
-              {switch conn.layout {
-              | Some(layout) => <MicLayoutPreview layout pressedNumbers />
-              | None =>
-                <div role="alert" className="alert alert-warning">
-                  <span>
-                    {React.string(
-                      "No layout artwork for this device id yet. Add an entry in MicLayouts (aligned with layouts.ts).",
-                    )}
-                  </span>
-                </div>
-              }}
+              <MicLayoutPreview layout=conn.config.layout pressedNumbers />
             </>
           | None =>
             <>
