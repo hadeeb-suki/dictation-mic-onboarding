@@ -39,7 +39,7 @@ let parseEvents = (events: array<Hid.loggedEvent>) => {
 @send external scrollIntoView: Dom.element => unit = "scrollIntoView"
 
 /** One continuous HID session: log every report, group visually by button number. */
-@react.component
+@jsx.component
 let make = (
   ~devices: array<WebHid.hidDevice>,
   ~events: array<Hid.loggedEvent>,

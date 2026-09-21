@@ -1,33 +1,36 @@
-@react.component
-let make = (~layout: Config.layout, ~pressedNumbers: array<int>) => {
-  let artwork = layout.artwork
+module Artwork = {
+  @jsx.component
+  let make = (
+    ~layout: Config.layout,
+    ~buttons: array<Config.button>,
+    ~pressedNumbers: array<int>,
+  ) => {
+    let artwork = layout.artwork
 
-  <div
-    className="bg-base-200 relative mx-auto overflow-hidden rounded-box"
-    style={{
-      width: Float.toString(Config.panelWidth) ++ "px",
-      height: Float.toString(Config.panelHeight) ++ "px",
-    }}
-  >
     <div
-      className="absolute"
+      className="bg-base-200 relative mx-auto overflow-hidden rounded-box"
       style={{
-        width: Float.toString(artwork.width) ++ "px",
-        height: Float.toString(artwork.height) ++ "px",
-        left: Float.toString(artwork.left) ++ "px",
-        top: Float.toString(artwork.top) ++ "px",
+        width: Float.toString(Config.panelWidth) ++ "px",
+        height: Float.toString(Config.panelHeight) ++ "px",
       }}
     >
-      <img
-        src=artwork.src
-        alt=""
-        className="pointer-events-none h-full w-full max-w-none select-none"
-        draggable=false
-      />
-      {switch layout.buttons {
-      | Config.WithoutBadge(_) => <div> {"ArtWork Not available"->React.string} </div>
-      | Config.WithBadge(buttons) =>
-        React.array(
+      <div
+        className="absolute"
+        style={{
+          width: Float.toString(artwork.width) ++ "px",
+          height: Float.toString(artwork.height) ++ "px",
+          left: Float.toString(artwork.left) ++ "px",
+          top: Float.toString(artwork.top) ++ "px",
+        }}
+      >
+        <img
+          src=artwork.src
+          alt=""
+          className="pointer-events-none h-full w-full max-w-none select-none"
+          draggable=false
+        />
+
+        {React.array(
           buttons->Array.map(button => {
             let isPressed = HidDecode.isNumberPressed(pressedNumbers, button.number)
             <span
@@ -48,8 +51,17 @@ let make = (~layout: Config.layout, ~pressedNumbers: array<int>) => {
               {React.string(Int.toString(button.number))}
             </span>
           }),
-        )
-      }}
+        )}
+      </div>
     </div>
-  </div>
+  }
+}
+
+@jsx.component
+let make = (~layout: Config.layout, ~pressedNumbers: array<int>) => {
+  switch layout.buttons {
+  | Config.WithoutBadge(_) => <div> {"ArtWork Not available"->React.string} </div>
+  | Config.WithBadge(buttons) =>
+    <Artwork layout=layout buttons=buttons pressedNumbers=pressedNumbers />
+  }
 }

@@ -44,7 +44,7 @@ let matchConfig = (device: WebHid.hidDevice): option<Config.deviceInfo> =>
 let toHex = value => "0x" ++ value->Int.toString(~radix=16)->String.padStart(2, "0")
 
 module UnsupportedBrowser = {
-  @react.component
+  @jsx.component
   let make = () =>
     <div className="mx-auto max-w-2xl p-8">
       <div
@@ -67,7 +67,7 @@ module UnsupportedBrowser = {
 }
 
 module Inner = {
-  @react.component
+  @jsx.component
   let make = () => {
     let (connection, setConnection) = React.useState(_ => None)
     let (isConnecting, setIsConnecting) = React.useState(_ => false)
@@ -380,7 +380,7 @@ module Inner = {
   }
 }
 
-@react.component
+@jsx.component
 let make = () =>
   switch WebHid.hid {
   | Some(_) => <Inner />
